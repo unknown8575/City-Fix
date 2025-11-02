@@ -9,6 +9,21 @@ body {
     flex-grow: 1;
 }
 
+.page-transition-container {
+    animation: pageTransitionAnimation 0.5s ease-out forwards;
+}
+
+@keyframes pageTransitionAnimation {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 .animated-section {
     animation: fadeInUp 0.7s ease-in-out forwards;
     opacity: 0;
@@ -45,4 +60,20 @@ button:hover:not(:disabled), .button-link:hover {
 button:active:not(:disabled), .button-link:active {
     transform: scale(0.98);
     box-shadow: none;
+}
+
+/* Live Feed Animation */
+.live-feed-item-enter {
+    animation: fadeIn 0.5s ease-out forwards;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }

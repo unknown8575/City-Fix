@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { fetchAllComplaints, fetchDashboardStats, sendCitizenNotification } from '../services/complaintService';
+import { fetchAllComplaints, fetchDashboardStats, updateComplaintStatus, sendFeedbackRequest } from '../services/complaintService';
 import { Complaint, ComplaintStatus, DashboardStats } from '../types';
 import Button from '../components/Button';
 import { ClockIcon, FolderOpenIcon, ExclamationTriangleIcon, ArrowPathIcon, MagnifyingGlassCircleIcon, CogIcon } from '../constants';
@@ -8,6 +8,7 @@ import SettingsModal from '../components/SettingsModal';
 import { NotificationSettings } from '../types';
 import DashboardStatCard from '../components/DashboardStatCard';
 import ComplaintCard from '../components/ComplaintCard';
+import ComplaintDetailsModal from '../components/ComplaintDetailsModal';
 
 
 // --- Main Page Component ---
@@ -19,8 +20,10 @@ const AdminDashboardPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [statusFilter, setStatusFilter] = useState('All');
     const [searchQuery, setSearchQuery] = useState('');
-    const [expandedComplaintId, setExpandedComplaintId] = useState<string | null>(null);
+    const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [feedbackLoading, setFeedbackLoading] = useState<string | null>(null);
+    const [updatingStatus, setUpdatingStatus] = useState<Record<string, boolean>>({});
     const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
         newComplaint: true,
         statusChange: true,
@@ -28,8 +31,10 @@ const AdminDashboardPage: React.FC = () => {
     });
 
 
-    const loadData = useCallback(async () => {
-        setLoading(true);
+    const loadData = useCallback(async (isBackgroundRefresh = false) => {
+        if (!isBackgroundRefresh) {
+            setLoading(true);
+        }
         setError(null);
         try {
             const data = await fetchAllComplaints();
@@ -39,54 +44,82 @@ const AdminDashboardPage: React.FC = () => {
             setError("Failed to load complaints. Please try again.");
             console.error(err);
         } finally {
-            setLoading(false);
+            if (!isBackgroundRefresh) {
+                setLoading(false);
+            }
         }
     }, []);
 
     useEffect(() => {
-        loadData();
+        loadData(); // Initial load
+        const intervalId = setInterval(() => loadData(true), 15000); // Background refresh every 15 seconds
+        return () => clearInterval(intervalId); // Cleanup on component unmount
     }, [loadData]);
 
-    const handleUpdateStatus = (complaintId: string, newStatus: ComplaintStatus) => {
-        let updatedComplaint: Complaint | null = null;
+    const handleUpdateStatus = async (complaintId: string, newStatus: ComplaintStatus) => {
+        setUpdatingStatus(prev => ({ ...prev, [complaintId]: true }));
         const adminId = "Admin #007"; // Mock admin identifier
         const note = `Status updated to ${newStatus} by ${adminId}.`;
 
-        const updatedComplaints = complaints.map(c => {
-            if (c.id === complaintId) {
-                const newHistoryEntry = { status: newStatus, timestamp: new Date(), notes: note };
-                updatedComplaint = {
-                    ...c,
-                    status: newStatus,
-                    history: [...c.history, newHistoryEntry],
-                };
-                if (newStatus === ComplaintStatus.RESOLVED) {
-                    updatedComplaint.resolvedAt = new Date();
-                }
-                return updatedComplaint;
-            }
-            return c;
-        });
+        try {
+            // Call the service to make the update persistent
+            const updatedComplaint = await updateComplaintStatus(complaintId, newStatus, note);
+            
+            // Update local state with the confirmed result from the service
+            const newComplaints = complaints.map(c => 
+                c.id === complaintId ? updatedComplaint : c
+            );
+            setComplaints(newComplaints);
+            setStats(fetchDashboardStats(newComplaints)); // Recalculate stats
 
-        setComplaints(updatedComplaints);
-        setStats(fetchDashboardStats(updatedComplaints));
+        } catch (err) {
+            setError(`Failed to update status for ${complaintId}. Please try again.`);
+            console.error(err);
+        } finally {
+            setUpdatingStatus(prev => ({ ...prev, [complaintId]: false }));
+        }
+    };
 
-        // After state update, send the simulated notification
-        if (updatedComplaint && notificationSettings.statusChange) {
-            sendCitizenNotification({
-                ticketId: updatedComplaint.id,
-                contact: updatedComplaint.contact,
-                newStatus: newStatus,
-                notes: note,
-            }).catch(error => {
-                console.error("Failed to send notification:", error);
-                // In a real app, you might show an error toast to the admin here.
+
+    const handleRequestFeedback = async (complaintId: string) => {
+        const complaint = complaints.find(c => c.id === complaintId);
+        if (!complaint) return;
+
+        setFeedbackLoading(complaintId);
+        try {
+            const score = await sendFeedbackRequest({
+                ticketId: complaint.id,
+                contact: complaint.contact,
             });
+
+            // Update local state to reflect the new score and history
+            setComplaints(prevComplaints =>
+                prevComplaints.map(c => {
+                    if (c.id === complaintId) {
+                        const newHistory = [...c.history, {
+                            status: c.status,
+                            timestamp: new Date(),
+                            notes: `Citizen feedback received: ${score}/5.`,
+                        }];
+                        return { ...c, citizenSatisfactionScore: score, history: newHistory };
+                    }
+                    return c;
+                })
+            );
+        } catch (error) {
+            console.error("Failed to send feedback request:", error);
+            // In a real app, you might show an error toast to the admin here.
+        } finally {
+            setFeedbackLoading(null);
         }
     };
     
-    const handleToggleExpand = (complaintId: string) => {
-        setExpandedComplaintId(prevId => (prevId === complaintId ? null : complaintId));
+    const handleViewDetails = (complaint: Complaint) => {
+        setSelectedComplaint(complaint);
+    };
+
+    const handleCloseModal = () => {
+        setSelectedComplaint(null);
     };
     
     const handleSaveSettings = (newSettings: NotificationSettings) => {
@@ -135,7 +168,7 @@ const AdminDashboardPage: React.FC = () => {
                     </select>
                 </div>
                 <div className="flex-grow"></div>
-                <Button onClick={loadData} disabled={loading} variant="ghost" className="!p-2" aria-label="Refresh Data">
+                <Button onClick={() => loadData()} disabled={loading} variant="ghost" className="!p-2" aria-label="Refresh Data">
                     <ArrowPathIcon className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
                 </Button>
                 <Button onClick={() => setIsSettingsOpen(true)} variant="ghost" className="!p-2" aria-label="Open Settings">
@@ -156,8 +189,10 @@ const AdminDashboardPage: React.FC = () => {
                                 key={complaint.id} 
                                 complaint={complaint} 
                                 onStatusChange={handleUpdateStatus} 
-                                isExpanded={expandedComplaintId === complaint.id}
-                                onToggleExpand={() => handleToggleExpand(complaint.id)}
+                                onViewDetails={() => handleViewDetails(complaint)}
+                                onRequestFeedback={() => handleRequestFeedback(complaint.id)}
+                                isFeedbackLoading={feedbackLoading === complaint.id}
+                                isUpdatingStatus={!!updatingStatus[complaint.id]}
                             />
                         ))
                     ) : (
@@ -171,6 +206,12 @@ const AdminDashboardPage: React.FC = () => {
                 onClose={() => setIsSettingsOpen(false)}
                 currentSettings={notificationSettings}
                 onSave={handleSaveSettings}
+            />
+
+            <ComplaintDetailsModal
+                isOpen={!!selectedComplaint}
+                onClose={handleCloseModal}
+                complaint={selectedComplaint}
             />
         </div>
     );

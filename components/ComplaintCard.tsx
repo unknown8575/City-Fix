@@ -1,13 +1,15 @@
 import React from 'react';
 import { Complaint, ComplaintStatus } from '../types';
 import Button from './Button';
-import ComplaintDetailsView from './ComplaintDetailsView';
+import { StarIcon } from '../constants';
 
 interface ComplaintCardProps {
   complaint: Complaint;
   onStatusChange: (id: string, newStatus: ComplaintStatus) => void;
-  isExpanded: boolean;
-  onToggleExpand: () => void;
+  onViewDetails: () => void;
+  onRequestFeedback: () => void;
+  isFeedbackLoading?: boolean;
+  isUpdatingStatus?: boolean;
 }
 
 const getStatusColorClass = (status: ComplaintStatus) => {
@@ -21,12 +23,12 @@ const getStatusColorClass = (status: ComplaintStatus) => {
     }
 }
 
-const ComplaintCard: React.FC<ComplaintCardProps> = ({ complaint, onStatusChange, isExpanded, onToggleExpand }) => {
+const ComplaintCard: React.FC<ComplaintCardProps> = ({ complaint, onStatusChange, onViewDetails, onRequestFeedback, isFeedbackLoading, isUpdatingStatus }) => {
     const relevanceColor = complaint.aiRelevanceFlag === 'Actionable' ? 'text-action-green-500' : 'text-gray-500';
 
     return (
-        <div className={`bg-neutral-white rounded-lg shadow-sm border-l-4 ${isExpanded ? 'border-gov-blue-900' : 'border-gov-blue-500'} transition-all duration-300`}>
-            <div className="p-4">
+        <div className="bg-neutral-white rounded-lg shadow-sm border-l-4 border-gov-blue-500 transition-all duration-300 flex flex-col">
+            <div className="p-4 flex-grow">
                 <div className="flex justify-between items-start">
                     <div>
                         <p className="font-bold text-gov-blue-900">{complaint.id}</p>
@@ -50,29 +52,47 @@ const ComplaintCard: React.FC<ComplaintCardProps> = ({ complaint, onStatusChange
                     <p><strong>Location:</strong> {complaint.location}</p>
                     <p><strong>Submitted:</strong> {complaint.submittedAt.toLocaleString()}</p>
                 </div>
-                <div className="mt-4 pt-3 border-t border-neutral-gray flex items-center justify-between gap-2">
-                     <Button variant="ghost" className="!py-1 !px-2 text-xs" onClick={onToggleExpand}>
-                        {isExpanded ? 'Hide Details' : 'View Details'}
+            </div>
+            <div className="p-4 mt-auto">
+                <div className="pt-3 border-t border-neutral-gray flex items-center justify-between gap-2">
+                     <Button variant="ghost" className="!py-1 !px-2 text-xs" onClick={onViewDetails}>
+                        View Details
                     </Button>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap justify-end">
                         {complaint.status === ComplaintStatus.PENDING && (
-                            <Button variant="outline" className="!py-1 !px-2 text-xs" onClick={() => onStatusChange(complaint.id, ComplaintStatus.IN_PROGRESS)}>Start Work</Button>
+                            <Button variant="outline" className="!py-1 !px-2 text-xs" onClick={() => onStatusChange(complaint.id, ComplaintStatus.IN_PROGRESS)} disabled={isUpdatingStatus}>
+                                {isUpdatingStatus ? 'Starting...' : 'Start Work'}
+                            </Button>
                         )}
                         {complaint.status === ComplaintStatus.IN_PROGRESS && (
-                            <Button variant="secondary" className="!py-1 !px-2 text-xs" onClick={() => onStatusChange(complaint.id, ComplaintStatus.RESOLVED)}>Mark Resolved</Button>
+                            <Button variant="secondary" className="!py-1 !px-2 text-xs" onClick={() => onStatusChange(complaint.id, ComplaintStatus.RESOLVED)} disabled={isUpdatingStatus}>
+                                {isUpdatingStatus ? 'Resolving...' : 'Mark Resolved'}
+                            </Button>
                         )}
                         {complaint.status === ComplaintStatus.RESOLVED && (
-                            <Button variant="ghost" className="!py-1 !px-2 text-xs" onClick={() => onStatusChange(complaint.id, ComplaintStatus.CLOSED)}>Close Ticket</Button>
+                             <>
+                                {!complaint.citizenSatisfactionScore ? (
+                                    <Button variant="primary" className="!py-1 !px-2 text-xs" onClick={onRequestFeedback} disabled={isFeedbackLoading || isUpdatingStatus}>
+                                        {isFeedbackLoading ? 'Sending...' : 'Request Feedback'}
+                                    </Button>
+                                ) : (
+                                    <div className="text-xs font-semibold text-gray-700 flex items-center">
+                                        Feedback: {complaint.citizenSatisfactionScore}/5 <StarIcon className="w-4 h-4 text-yellow-500 ml-1" />
+                                    </div>
+                                )}
+                                <Button variant="ghost" className="!py-1 !px-2 text-xs" onClick={() => onStatusChange(complaint.id, ComplaintStatus.CLOSED)} disabled={isUpdatingStatus}>
+                                    {isUpdatingStatus ? 'Closing...' : 'Close Ticket'}
+                                </Button>
+                            </>
                         )}
+                         {complaint.status === ComplaintStatus.CLOSED && complaint.citizenSatisfactionScore && (
+                              <div className="text-xs font-semibold text-gray-700 flex items-center">
+                                Feedback: {complaint.citizenSatisfactionScore}/5 <StarIcon className="w-4 h-4 text-yellow-500 ml-1" />
+                            </div>
+                         )}
                     </div>
                 </div>
             </div>
-
-            {isExpanded && (
-                <div className="px-4 pb-4 border-t border-neutral-gray bg-neutral-light-gray">
-                   <ComplaintDetailsView complaint={complaint} />
-                </div>
-            )}
         </div>
     );
 };

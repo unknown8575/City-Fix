@@ -1,12 +1,15 @@
 
+
 import React, { useState, lazy, Suspense } from 'react';
-import { HashRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { HashRouter, Routes, Route, Link, useLocation, Navigate, useNavigate } from 'react-router-dom';
 import LanguageToggle from './components/LanguageToggle';
 import Chatbot from './components/Chatbot';
 import Footer from './components/Footer';
 import Spinner from './components/Spinner';
 import { LocaleContext } from './contexts/LocaleContext';
-import { GlobeAltIcon, HomeIcon, PlusCircleIcon, MagnifyingGlassCircleIcon, ChartBarIcon, UserGroupIcon } from './constants';
+import { AuthContext } from './contexts/AuthContext';
+import { useAuth } from './hooks/useAuth';
+import { GlobeAltIcon, HomeIcon, PlusCircleIcon, MagnifyingGlassCircleIcon, ChartBarIcon, UserGroupIcon, SparklesIcon, ArrowRightOnRectangleIcon, ArrowLeftOnRectangleIcon } from './constants';
 import AboutUsPage from './pages/AboutUsPage';
 import TermsOfServicePage from './pages/TermsOfServicePage';
 
@@ -15,6 +18,9 @@ const SubmitComplaintPage = lazy(() => import('./pages/SubmitComplaintPage'));
 const TrackStatusPage = lazy(() => import('./pages/TrackStatusPage'));
 const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage'));
 const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'));
+const SupportPage = lazy(() => import('./pages/SupportPage'));
+const PredictionPage = lazy(() => import('./pages/PredictionPage'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
 
 
 // Simple Localization Context
@@ -25,7 +31,9 @@ const translations: Record<string, Record<string, string>> = {
     trackStatus: "Track Status",
     adminDashboard: "Admin Dashboard",
     analytics: "Analytics",
+    prediction: "Prediction",
     portalTitle: "Civic Complaints Portal",
+    trackCivicComplaints: "Track Civic Complaints",
     landingTitle: "Your Voice, Our Action: Fast-Track Civic Complaints",
     landingSubtitle: "Easily report municipal issues, track their progress, and see the impact of your feedback. Powered by AI for faster resolution.",
     processedLastMonth: "Complaints Processed Last 30 Days",
@@ -123,7 +131,7 @@ const translations: Record<string, Record<string, string>> = {
     termsDisclaimersTitle: "Disclaimers",
     termsDisclaimersContent: "This portal acts as a facilitation tool to connect citizens with the relevant municipal authorities. While we strive for efficient processing, we do not guarantee a specific outcome or timeline for complaint resolution. The responsibility for acting on a complaint lies with the designated municipal department.",
     termsGoverningLawTitle: "Governing Law and Jurisdiction",
-    termsGoverningLawContent: "These terms shall be governed by and construed in accordance with the laws of India. Any disputes arising out of your use of this platform will be subject to the exclusive jurisdiction of the courts in the respective municipal area.",
+    termsGoverningLawContent: "These terms shall be governed by and construed in accordance with the laws of India. Any disputes arising out of your use of this platform will be subject to the exclusive jurisdiction of the respective municipal area.",
     termsContactUsTitle: "Contact Us",
     termsContactUsContent: "If you have any questions about these Terms of Service, please contact us via the details provided in the footer.",
     // About Us
@@ -143,6 +151,42 @@ const translations: Record<string, Record<string, string>> = {
     aboutCommitmentContent: "Built by a passionate team of civic tech innovators in collaboration with local government bodies, this platform is rooted in the values of public service and democratic participation. We are dedicated to upholding the highest standards of data privacy and security.",
     aboutJoinUsTitle: "Join Us in Building Better Cities",
     aboutJoinUsContent: "Your feedback is invaluable. If you have suggestions or ideas on how we can improve, please reach out. Together, we can make our communities better places to live.",
+    contactSupport: "Contact Support",
+    // Support Page
+    supportTitle: "Contact Support",
+    supportIntro: "We're here to help. If you have any questions, technical issues, or feedback, please don't hesitate to reach out.",
+    supportContactInfo: "Contact Information",
+    supportSendMessage: "Send us a Message",
+    yourName: "Your Name",
+    yourEmail: "Your Email",
+    ticketIdOptional: "Ticket ID (Optional)",
+    yourMessage: "Your Message",
+    sendMessage: "Send Message",
+    messageSentSuccess: "Your message has been sent successfully! Our team will get back to you shortly.",
+    nameRequired: "Your name is required.",
+    emailRequired: "A valid email address is required.",
+    messageRequired: "Message cannot be empty.",
+    // Prediction Page
+    predictionTitle: "AI-Powered Predictive Analytics",
+    predictionSubtitle: "Forecast potential civic issues to enable proactive resource allocation and preventive measures.",
+    dateRange: "Select Forecast Period:",
+    cityWideRisk: "City-Wide Risk Level",
+    topCriticalAreas: "Top 5 Critical Areas",
+    predictedIssue: "Predicted Issue",
+    severity: "Severity",
+    expectedComplaints: "Expected Complaint Distribution",
+    geospatialRisk: "Geospatial Risk Heatmap",
+    actionableRecs: "Actionable Recommendations",
+    downloadReport: "Download Report",
+    // Login Page
+    municipalityLogin: "Municipality Login",
+    logout: "Logout",
+    municipalityName: "Municipality",
+    email: "Email",
+    password: "Password",
+    login: "Login",
+    allFieldsRequired: "Please select a municipality and enter your password.",
+    selectMunicipality: "--- Select your Municipality ---",
   },
   hi: {
     home: "मुख्य पृष्ठ",
@@ -150,7 +194,9 @@ const translations: Record<string, Record<string, string>> = {
     trackStatus: "स्थिति ट्रैक करें",
     adminDashboard: "एडमिन डैशबोर्ड",
     analytics: "विश्लेषण",
+    prediction: "पूर्वानुमान",
     portalTitle: "नागरिक शिकायत पोर्टल",
+    trackCivicComplaints: "नागरिक शिकायतों को ट्रैक करें",
     landingTitle: "आपकी आवाज़, हमारी कार्रवाई: नागरिक शिकायतों का त्वरित समाधान",
     landingSubtitle: "नगरपालिका के मुद्दों की आसानी से रिपोर्ट करें, उनकी प्रगति को ट्रैक करें, और अपनी प्रतिक्रिया का प्रभाव देखें। तीव्र समाधान के लिए एआई द्वारा संचालित।",
     processedLastMonth: "पिछले 30 दिनों में संसाधित शिकायतें",
@@ -268,6 +314,42 @@ const translations: Record<string, Record<string, string>> = {
     aboutCommitmentContent: "स्थानीय सरकारी निकायों के सहयोग से नागरिक तकनीक के उत्साही नवप्रवर्तकों की एक टीम द्वारा निर्मित, यह प्लेटफ़ॉर्म सार्वजनिक सेवा और लोकतांत्रिक भागीदारी के मूल्यों में निहित है। हम डेटा गोपनीयता और सुरक्षा के उच्चतम मानकों को बनाए रखने के लिए समर्पित हैं।",
     aboutJoinUsTitle: "बेहतर शहर बनाने में हमारा साथ दें",
     aboutJoinUsContent: "आपकी प्रतिक्रिया अमूल्य है। यदि आपके पास सुधार के लिए कोई सुझाव या विचार हैं, तो कृपया हमसे संपर्क करें। साथ मिलकर, हम अपने समुदायों को रहने के लिए बेहतर स्थान बना सकते हैं।",
+    contactSupport: "सहायता से संपर्क करें",
+    // Support Page - Hindi
+    supportTitle: "सहायता से संपर्क करें",
+    supportIntro: "हम यहाँ मदद करने के लिए हैं। यदि आपके कोई प्रश्न, तकनीकी समस्याएँ, या प्रतिक्रिया है, तो कृपया संपर्क करने में संकोच न करें।",
+    supportContactInfo: "संपर्क जानकारी",
+    supportSendMessage: "हमें एक संदेश भेजें",
+    yourName: "आपका नाम",
+    yourEmail: "आपका ईमेल",
+    ticketIdOptional: "टिकट आईडी (वैकल्पिक)",
+    yourMessage: "आपका संदेश",
+    sendMessage: "संदेश भेजें",
+    messageSentSuccess: "आपका संदेश सफलतापूर्वक भेज दिया गया है! हमारी टीम जल्द ही आपसे संपर्क करेगी।",
+    nameRequired: "आपका नाम आवश्यक है।",
+    emailRequired: "एक वैध ईमेल पता आवश्यक है।",
+    messageRequired: "संदेश खाली नहीं हो सकता।",
+    // Prediction Page - Hindi
+    predictionTitle: "एआई-संचालित पूर्वानुमान विश्लेषण",
+    predictionSubtitle: "सक्रिय संसाधन आवंटन और निवारक उपायों को सक्षम करने के लिए संभावित नागरिक मुद्दों का पूर्वानुमान करें।",
+    dateRange: "पूर्वानुमान अवधि चुनें:",
+    cityWideRisk: "शहर-व्यापी जोखिम स्तर",
+    topCriticalAreas: "शीर्ष 5 महत्वपूर्ण क्षेत्र",
+    predictedIssue: "अनुमानित मुद्दा",
+    severity: "गंभीरता",
+    expectedComplaints: "अपेक्षित शिकायत वितरण",
+    geospatialRisk: "भू-स्थानिक जोखिम हीटमैप",
+    actionableRecs: "कार्रवाई योग्य सिफारिशें",
+    downloadReport: "रिपोर्ट डाउनलोड करें",
+    // Login Page - Hindi
+    municipalityLogin: "नगर पालिका लॉगिन",
+    logout: "लॉग आउट",
+    municipalityName: "नगर पालिका",
+    email: "ईमेल",
+    password: "पासवर्ड",
+    login: "लॉग इन करें",
+    allFieldsRequired: "कृपया एक नगर पालिका चुनें और अपना पासवर्ड दर्ज करें।",
+    selectMunicipality: "--- अपनी नगर पालिका चुनें ---",
   }
 };
 
@@ -278,7 +360,7 @@ const Header: React.FC<{ currentLang: string, onToggleLang: (lang: string) => vo
       <div className="container mx-auto flex justify-between items-center">
         <Link to="/" className="flex items-center text-xl md:text-2xl font-bold text-gov-blue-900">
           <GlobeAltIcon className="h-8 w-8 mr-2 text-gov-blue-500" aria-hidden="true" />
-          <span className={currentLang === 'hi' ? 'font-sans' : ''}>{t('portalTitle')}</span>
+          <span>{t('portalTitle')}</span>
         </Link>
         <div className="flex items-center space-x-4">
           <LanguageToggle currentLang={currentLang} onToggle={onToggleLang} />
@@ -288,69 +370,126 @@ const Header: React.FC<{ currentLang: string, onToggleLang: (lang: string) => vo
   );
 };
 
-const Navbar: React.FC<{ t: (key: string) => string, currentLang: string }> = ({ t, currentLang }) => {
-  const location = useLocation();
-  const navItems = [
-    { name: t('home'), path: '/', icon: HomeIcon },
-    { name: t('submitComplaint'), path: '/submit', icon: PlusCircleIcon },
-    { name: t('trackStatus'), path: '/track', icon: MagnifyingGlassCircleIcon },
-    { name: t('adminDashboard'), path: '/admin', icon: UserGroupIcon },
-    { name: t('analytics'), path: '/analytics', icon: ChartBarIcon },
-  ];
+const Navbar: React.FC<{ t: (key: string) => string }> = ({ t }) => {
+    const location = useLocation();
+    const { isLoggedIn, logout } = useAuth();
+    const navigate = useNavigate();
 
-  return (
-    <nav className="bg-gov-blue-900 text-neutral-white py-3 shadow-md sticky top-[80px] z-40">
-      <div className="container mx-auto flex flex-wrap justify-center sm:justify-start gap-x-4 gap-y-2 px-4 sm:px-6 lg:px-8">
-        {navItems.map((item) => (
-          <Link
-            key={item.name}
-            to={item.path}
-            className={`
-              flex items-center px-3 py-2 rounded-lg text-sm font-medium
-              hover:bg-gov-blue-500 transition-colors duration-150
-              ${location.pathname === item.path ? 'bg-gov-blue-500' : ''}
-              ${currentLang === 'hi' ? 'font-sans' : ''} button-link
-            `}
-            aria-current={location.pathname === item.path ? "page" : undefined}
-          >
-            <item.icon className="h-5 w-5 mr-2" aria-hidden="true" />
-            {item.name}
-          </Link>
-        ))}
-      </div>
-    </nav>
-  );
+    const handleLogout = () => {
+        logout();
+        navigate('/');
+    };
+
+    const navItems = [
+        { name: t('home'), path: '/', icon: HomeIcon, visible: true },
+        { name: t('submitComplaint'), path: '/submit', icon: PlusCircleIcon, visible: true },
+        { name: t('trackStatus'), path: '/track', icon: MagnifyingGlassCircleIcon, visible: true },
+        { name: t('adminDashboard'), path: '/admin', icon: UserGroupIcon, visible: isLoggedIn },
+        { name: t('analytics'), path: '/analytics', icon: ChartBarIcon, visible: true },
+        { name: t('prediction'), path: '/prediction', icon: SparklesIcon, visible: isLoggedIn },
+    ];
+
+    const visibleNavItems = navItems.filter(item => item.visible);
+
+    return (
+        <nav className="bg-gov-blue-900 text-neutral-white py-3 shadow-md sticky top-[80px] z-40">
+            <div className="container mx-auto flex flex-wrap justify-between items-center gap-x-4 gap-y-2 px-4 sm:px-6 lg:px-8">
+                <div className="flex flex-wrap justify-center sm:justify-start gap-x-4 gap-y-2">
+                    {visibleNavItems.map((item) => (
+                        <Link
+                            key={item.name}
+                            to={item.path}
+                            className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium hover:bg-gov-blue-500 transition-colors duration-150 ${location.pathname === item.path ? 'bg-gov-blue-500' : ''} button-link`}
+                            aria-current={location.pathname === item.path ? "page" : undefined}
+                        >
+                            <item.icon className="h-5 w-5 mr-2" aria-hidden="true" />
+                            {item.name}
+                        </Link>
+                    ))}
+                </div>
+                <div>
+                    {isLoggedIn ? (
+                        <button
+                            onClick={handleLogout}
+                            className="flex items-center px-3 py-2 rounded-lg text-sm font-medium hover:bg-gov-blue-500 transition-colors duration-150 button-link"
+                        >
+                            <ArrowLeftOnRectangleIcon className="h-5 w-5 mr-2" aria-hidden="true" />
+                            {t('logout')}
+                        </button>
+                    ) : (
+                        <Link
+                            to="/login"
+                            className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium hover:bg-gov-blue-500 transition-colors duration-150 ${location.pathname === '/login' ? 'bg-gov-blue-500' : ''} button-link`}
+                            aria-current={location.pathname === '/login' ? "page" : undefined}
+                        >
+                            <ArrowRightOnRectangleIcon className="h-5 w-5 mr-2" aria-hidden="true" />
+                            {t('municipalityLogin')}
+                        </Link>
+                    )}
+                </div>
+            </div>
+        </nav>
+    );
 };
 
 
-function App() {
-  const [lang, setLang] = useState('en');
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const { isLoggedIn } = useAuth();
+    const location = useLocation();
 
-  const t = (key: string) => translations[lang]?.[key] || key;
+    if (!isLoggedIn) {
+        return <Navigate to="/login" state={{ from: location }} replace />;
+    }
 
-  return (
-    <LocaleContext.Provider value={{ lang, setLang, t }}>
-      <HashRouter>
-        <div className={`flex flex-col min-h-screen ${lang === 'hi' ? 'font-sans' : ''}`}>
-            <Header currentLang={lang} onToggleLang={setLang} t={t} />
-            <Navbar t={t} currentLang={lang} />
-            <main className="container mx-auto p-4 sm:p-6 lg:p-8 main-content">
-              <Suspense fallback={<Spinner />}>
+    return <>{children}</>;
+};
+
+const AnimatedRoutes = () => {
+    const location = useLocation();
+    return (
+        <div key={location.pathname} className="page-transition-container">
+            <Suspense fallback={<Spinner />}>
                 <Routes>
                     <Route path="/" element={<LandingPage />} />
                     <Route path="/submit" element={<SubmitComplaintPage />} />
                     <Route path="/track" element={<TrackStatusPage />} />
-                    <Route path="/admin" element={<AdminDashboardPage />} />
+                    <Route path="/login" element={<LoginPage />} />
                     <Route path="/analytics" element={<AnalyticsPage />} />
+                    <Route path="/admin" element={<ProtectedRoute><AdminDashboardPage /></ProtectedRoute>} />
+                    <Route path="/prediction" element={<ProtectedRoute><PredictionPage /></ProtectedRoute>} />
                     <Route path="/about" element={<AboutUsPage />} />
                     <Route path="/terms" element={<TermsOfServicePage />} />
+                    <Route path="/support" element={<SupportPage />} />
                 </Routes>
-              </Suspense>
-            </main>
-            <Footer />
-            <Chatbot />
+            </Suspense>
         </div>
-      </HashRouter>
+    );
+};
+
+function App() {
+  const [lang, setLang] = useState('en');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  const t = (key: string) => translations[lang]?.[key] || key;
+  
+  const login = () => setIsLoggedIn(true);
+  const logout = () => setIsLoggedIn(false);
+
+  return (
+    <LocaleContext.Provider value={{ lang, setLang, t }}>
+      <AuthContext.Provider value={{ isLoggedIn, login, logout }}>
+          <HashRouter>
+            <div className="flex flex-col min-h-screen font-sans">
+                <Header currentLang={lang} onToggleLang={setLang} t={t} />
+                <Navbar t={t} />
+                <main className="container mx-auto p-4 sm:p-6 lg:p-8 main-content">
+                  <AnimatedRoutes />
+                </main>
+                <Footer />
+                <Chatbot />
+            </div>
+          </HashRouter>
+      </AuthContext.Provider>
     </LocaleContext.Provider>
   );
 }

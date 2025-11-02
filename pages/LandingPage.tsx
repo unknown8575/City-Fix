@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Button from '../components/Button';
@@ -40,9 +41,9 @@ const LandingPage: React.FC = () => {
 
   return (
     <div className="py-8">
-      <section className="text-center mb-12 bg-gov-blue-900 text-neutral-white py-16 px-4 rounded-lg shadow-md animated-section">
-        <h1 className="text-4xl sm:text-5xl font-extrabold mb-4 leading-tight">
-          {t('landingTitle')}
+      <section className="text-center mb-12 bg-gov-blue-900 text-neutral-white py-16 px-4 rounded-lg shadow-md">
+        <h1 className="text-4xl sm:text-5xl font-extrabold mb-4 leading-tight text-neutral-white">
+          {t('trackCivicComplaints')}
         </h1>
         <p className="text-lg sm:text-xl mb-8 max-w-3xl mx-auto">
           {t('landingSubtitle')}
@@ -61,10 +62,12 @@ const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      <section className="mb-12 animated-section" style={{ animationDelay: '0.2s' }}>
-        <h2 className="text-3xl font-bold text-center text-neutral-dark-gray mb-8">
-          {t('ourImpact')}
-        </h2>
+      <section className="mb-12">
+        <div className="text-center mb-8">
+          <h2 className="inline-block text-3xl font-bold text-neutral-dark-gray px-6 py-2 border-2 border-neutral-dark-gray">
+            {t('ourImpact')}
+          </h2>
+        </div>
         {loading ? (
              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 animate-pulse">
                 {[...Array(3)].map((_, i) => <div key={i} className="bg-neutral-gray h-48 rounded-lg"></div>)}
@@ -78,7 +81,7 @@ const LandingPage: React.FC = () => {
         )}
       </section>
 
-      <section className="text-center bg-neutral-white p-8 rounded-lg shadow-sm animated-section" style={{ animationDelay: '0.4s' }}>
+      <section className="text-center bg-neutral-white p-8 rounded-lg shadow-sm">
         <h2 className="text-3xl font-bold text-center text-neutral-dark-gray mb-4">
           {t('howItWorks')}
         </h2>

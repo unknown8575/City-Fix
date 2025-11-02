@@ -1,16 +1,35 @@
 
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import StatCard from '../components/StatCard';
 import { ClockIcon, UserGroupIcon, MagnifyingGlassCircleIcon, HandThumbUpIcon } from '../constants';
 import { fetchAnalyticsStats, fetchAllComplaints } from '../services/complaintService';
 import { Stat, CategoryStat, Complaint, ComplaintStatus } from '../types';
+import LiveFeedItem from '../components/LiveFeedItem';
+import Spinner from '../components/Spinner';
+
+// Helper to shuffle array
+const shuffleArray = <T,>(array: T[]): T[] => {
+    let currentIndex = array.length, randomIndex;
+    while (currentIndex !== 0) {
+        randomIndex = Math.floor(Math.random() * currentIndex);
+        currentIndex--;
+        [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+    }
+    return array;
+};
+
 
 const AnalyticsPage: React.FC = () => {
     const [stats, setStats] = useState<Stat[]>([]);
     const [categoryData, setCategoryData] = useState<CategoryStat[]>([]);
-    const [resolvedComplaints, setResolvedComplaints] = useState<Complaint[]>([]);
+    const [liveFeedItems, setLiveFeedItems] = useState<Complaint[]>([]); // This will hold displayed items
     const [loading, setLoading] = useState(true);
+    
+    // Use a ref to hold the pool of complaints to be added to the feed
+    const unprocessedComplaintsRef = useRef<Complaint[]>([]);
+    const feedIndexRef = useRef<number>(0);
 
     useEffect(() => {
         const loadData = async () => {
@@ -28,9 +47,15 @@ const AnalyticsPage: React.FC = () => {
                 ];
                 setStats(fetchedStats);
 
-                const resComplaints = complaintsData.filter(c => c.status === ComplaintStatus.RESOLVED);
-                setResolvedComplaints(resComplaints);
+                const resolvedComplaints = complaintsData.filter(c => c.status === ComplaintStatus.RESOLVED || c.status === ComplaintStatus.CLOSED);
                 
+                // Shuffle and store in ref for the live feed simulation
+                unprocessedComplaintsRef.current = shuffleArray(resolvedComplaints);
+                
+                // Initialize the feed with the first 5 items
+                setLiveFeedItems(unprocessedComplaintsRef.current.slice(0, 5));
+                feedIndexRef.current = 5;
+
                 // Mock category resolution times
                 const catStats: CategoryStat[] = [
                     { name: 'Waste Mgmt', time: 22 },
@@ -50,8 +75,39 @@ const AnalyticsPage: React.FC = () => {
         loadData();
     }, []);
 
+    // Effect for the live feed simulation
+    useEffect(() => {
+        if (loading) return; // Don't start interval until initial data is loaded
+
+        const interval = setInterval(() => {
+            if (unprocessedComplaintsRef.current.length === 0) {
+                return; // Stop if no complaints
+            }
+            
+            // Loop back if we've reached the end
+            if (feedIndexRef.current >= unprocessedComplaintsRef.current.length) {
+                feedIndexRef.current = 0;
+            }
+
+            const nextComplaint = unprocessedComplaintsRef.current[feedIndexRef.current];
+            feedIndexRef.current++;
+
+            setLiveFeedItems(prevItems => {
+                // Avoid adding duplicates if the list is small
+                if (prevItems.find(item => item.id === nextComplaint.id)) {
+                    return prevItems;
+                }
+                const newItems = [nextComplaint, ...prevItems];
+                return newItems.slice(0, 5); // Keep the feed to a max of 5 items
+            });
+
+        }, 4000); // Add a new item every 4 seconds
+
+        return () => clearInterval(interval); // Cleanup
+    }, [loading]);
+
     if (loading) {
-        return <div className="text-center p-10">Loading Analytics...</div>
+        return <Spinner />;
     }
 
     return (
@@ -81,17 +137,14 @@ const AnalyticsPage: React.FC = () => {
 
                 <div className="bg-neutral-white p-6 rounded-lg shadow-md">
                     <h2 className="text-xl font-bold text-neutral-dark-gray mb-4">Live Feed: Recently Resolved</h2>
-                    <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
-                        {resolvedComplaints.map(c => (
-                            <div key={c.id} className="flex items-center gap-4 border-b pb-2">
-                                <img src={c.photoAfterUrl || 'https://picsum.photos/seed/resolved/100'} alt="Resolved" className="w-16 h-16 rounded-md object-cover"/>
-                                <div>
-                                    <p className="font-semibold text-sm text-gov-blue-900">{c.category}</p>
-                                    <p className="text-xs text-gray-600">{c.location}</p>
-                                    <p className="text-xs text-action-green-500 font-bold">Resolved on {c.resolvedAt?.toLocaleDateString()}</p>
-                                </div>
-                            </div>
-                        ))}
+                    <div className="space-y-4 max-h-[420px] overflow-y-auto pr-2">
+                        {liveFeedItems.length > 0 ? (
+                           liveFeedItems.map(c => (
+                                <LiveFeedItem key={c.id} complaint={c} />
+                           ))
+                        ) : (
+                           <p className="text-sm text-gray-500 text-center pt-10">Waiting for resolved complaints...</p>
+                        )}
                     </div>
                 </div>
             </div>

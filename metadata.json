@@ -1,5 +1,5 @@
 {
-  "name": "Civic Complaints Portal",
+  "name": "City Fix",
   "description": "A luxury-style civic complaints portal for Indian municipal authorities, featuring a bilingual interface, AI-powered processing insights, and comprehensive analytics for officials. Designed to be mobile-first and highly accessible.",
   "requestFramePermissions": [
     "geolocation"

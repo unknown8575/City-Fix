@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { useLocalization } from '../hooks/useLocalization';
 
@@ -13,7 +14,7 @@ const TermsOfServicePage: React.FC = () => {
     );
 
     return (
-        <div className="bg-neutral-white p-6 sm:p-8 rounded-lg shadow-md max-w-4xl mx-auto animated-section">
+        <div className="bg-neutral-white p-6 sm:p-8 rounded-lg shadow-md max-w-4xl mx-auto">
             <h1 className="text-3xl sm:text-4xl font-extrabold text-gov-blue-900 mb-2 text-center">{t('termsTitle')}</h1>
             <p className="text-center text-sm text-gray-500 mb-8">{t('termsLastUpdated')} {new Date().toLocaleDateString()}</p>
 

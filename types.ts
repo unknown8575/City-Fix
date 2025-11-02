@@ -28,6 +28,7 @@ export interface Complaint {
   aiSummary?: string;
   aiRelevanceFlag?: 'Actionable' | 'Normal Complaint';
   aiActionRecommendation?: string;
+  citizenSatisfactionScore?: number; // Score from 1-5
   history: {
     status: ComplaintStatus;
     timestamp: Date;
@@ -65,4 +66,26 @@ export interface NotificationSettings {
   newComplaint: boolean;
   statusChange: boolean;
   slaBreach: boolean;
+}
+
+// --- Predictive Analytics Types ---
+export enum RiskLevel {
+    LOW = 'Low',
+    MEDIUM = 'Medium',
+    HIGH = 'High',
+    CRITICAL = 'Critical'
+}
+
+export interface CriticalArea {
+    location: string;
+    predictedIssue: string;
+    severityScore: number; // e.g., 1-100
+}
+
+export interface PredictionData {
+    cityWideRisk: RiskLevel;
+    topCriticalAreas: CriticalArea[];
+    expectedCategoryDistribution: { name: string; value: number }[];
+    actionableRecommendations: string[];
+    heatmapUrl: string; // URL to a map image overlay
 }

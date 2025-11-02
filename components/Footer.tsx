@@ -32,6 +32,7 @@ const Footer: React.FC = () => {
               <li><Link to="/track" className="hover:underline">{t('trackStatus')}</Link></li>
               <li><Link to="/terms" className="hover:underline">{t('termsOfService')}</Link></li>
               <li><Link to="/about" className="hover:underline">{t('aboutUs')}</Link></li>
+              <li><Link to="/support" className="hover:underline">{t('contactSupport')}</Link></li>
             </ul>
           </div>
 

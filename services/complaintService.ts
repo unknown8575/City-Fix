@@ -1,4 +1,4 @@
-import { Complaint, ComplaintStatus, AnalyticsStats, DashboardStats } from '../types';
+import { Complaint, ComplaintStatus, AnalyticsStats, DashboardStats, PredictionData, RiskLevel } from '../types';
 import { GoogleGenAI, Type } from '@google/genai';
 import { fileToBase64 } from '../utils/fileUtils';
 
@@ -30,11 +30,12 @@ const complaints: Complaint[] = [
     description: 'Large pothole on the main road is causing traffic issues and is dangerous for two-wheelers.',
     location: 'MG Road, near Metro Station',
     contact: '9123456789',
-    status: ComplaintStatus.RESOLVED,
+    status: ComplaintStatus.CLOSED,
     submittedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
     resolvedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
     photoBeforeUrl: 'https://picsum.photos/seed/before2/400/300',
     photoAfterUrl: 'https://picsum.photos/seed/after2/400/300',
+    citizenSatisfactionScore: 5,
     aiConfidence: 98,
     escalationDept: 'Public Works Dept.',
     aiPriority: 'High',
@@ -46,6 +47,7 @@ const complaints: Complaint[] = [
       { status: ComplaintStatus.PENDING, timestamp: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), notes: 'Complaint submitted by citizen and pending review.' },
       { status: ComplaintStatus.IN_PROGRESS, timestamp: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000), notes: 'Work order created and assigned to contractor.' },
       { status: ComplaintStatus.RESOLVED, timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), notes: 'Pothole repaired. Photos uploaded by field agent.' },
+      { status: ComplaintStatus.CLOSED, timestamp: new Date(Date.now() - 20 * 60 * 60 * 1000), notes: 'Citizen feedback received: 5/5. Ticket closed automatically.' },
     ]
   },
   {
@@ -343,6 +345,45 @@ export const fetchAnalyticsStats = async (): Promise<AnalyticsStats> => {
     });
 };
 
+export const sendFeedbackRequest = async ({
+  ticketId,
+  contact,
+}: {
+  ticketId: string;
+  contact: string;
+}): Promise<number> => {
+  return new Promise(resolve => {
+    // Simulate sending the SMS
+    setTimeout(() => {
+      const message = `Dear Citizen, we hope your issue #${ticketId} is resolved. Please rate your satisfaction on a scale of 1 (Poor) to 5 (Excellent) by replying to this message.`;
+      console.log(`[FEEDBACK REQUEST SIMULATION]`);
+      console.log(`---------------------------`);
+      console.log(`Type: SMS`);
+      console.log(`To: ${contact}`);
+      console.log(`Message: ${message}`);
+      console.log(`---------------------------`);
+
+      // Simulate citizen responding after a few seconds
+      setTimeout(() => {
+          const randomScore = Math.floor(Math.random() * 5) + 1;
+          console.log(`[FEEDBACK RECEIVED] For ticket #${ticketId}, citizen responded with a score of: ${randomScore}/5`);
+          
+          const complaintIndex = complaints.findIndex(c => c.id === ticketId);
+          if (complaintIndex !== -1) {
+              complaints[complaintIndex].citizenSatisfactionScore = randomScore;
+              complaints[complaintIndex].history.push({
+                  status: complaints[complaintIndex].status,
+                  timestamp: new Date(),
+                  notes: `Citizen feedback received: ${randomScore}/5.`,
+              });
+          }
+          resolve(randomScore);
+      }, 3000); 
+
+    }, 1000);
+  });
+};
+
 export const sendCitizenNotification = async ({
   ticketId,
   contact,
@@ -365,6 +406,77 @@ export const sendCitizenNotification = async ({
       console.log(`---------------------------`);
       resolve();
     }, 1000); // Simulate network delay
+  });
+};
+
+export const updateComplaintStatus = async (
+  complaintId: string,
+  newStatus: ComplaintStatus,
+  notes: string
+): Promise<Complaint> => {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      const complaintIndex = complaints.findIndex(c => c.id === complaintId);
+      if (complaintIndex === -1) {
+        return reject(new Error("Complaint not found"));
+      }
+      
+      const updatedComplaint = { ...complaints[complaintIndex] };
+      updatedComplaint.status = newStatus;
+      updatedComplaint.history = [
+        ...updatedComplaint.history,
+        { status: newStatus, timestamp: new Date(), notes }
+      ];
+
+      // Set/reset resolvedAt timestamp based on status
+      if (newStatus === ComplaintStatus.RESOLVED) {
+        updatedComplaint.resolvedAt = new Date();
+      } else if (newStatus === ComplaintStatus.IN_PROGRESS) {
+        // This handles reopening a ticket, clearing the old resolution date.
+        updatedComplaint.resolvedAt = undefined;
+      }
+
+      complaints[complaintIndex] = updatedComplaint;
+      
+      // Simulate sending a notification for the citizen's action or admin's update
+      sendCitizenNotification({
+        ticketId: updatedComplaint.id,
+        contact: updatedComplaint.contact,
+        newStatus: newStatus,
+        notes: notes,
+      });
+
+      resolve(updatedComplaint);
+    }, 500);
+  });
+};
+
+export const confirmResolutionWithPhoto = async (
+  complaintId: string,
+  photo: File,
+  notes: string
+): Promise<Complaint> => {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      const complaintIndex = complaints.findIndex(c => c.id === complaintId);
+      if (complaintIndex === -1) {
+        return reject(new Error("Complaint not found"));
+      }
+      
+      const updatedComplaint = { ...complaints[complaintIndex] };
+      updatedComplaint.status = ComplaintStatus.CLOSED;
+      updatedComplaint.photoAfterUrl = URL.createObjectURL(photo);
+      updatedComplaint.history = [
+        ...updatedComplaint.history,
+        { status: ComplaintStatus.CLOSED, timestamp: new Date(), notes }
+      ];
+
+      complaints[complaintIndex] = updatedComplaint;
+      
+      console.log(`[NOTIFICATION SIMULATION] to Admin: Citizen has closed ticket #${complaintId} with a resolution photo.`);
+
+      resolve(updatedComplaint);
+    }, 1500);
   });
 };
 
@@ -438,4 +550,41 @@ export const analyzeImage = async (imageFile: File): Promise<{ category: string;
     console.error('Error analyzing image with Gemini:', error);
     throw new Error('Failed to analyze image. Please try again or enter details manually.');
   }
+};
+
+/**
+ * AI Service Contract (Simulated Backend Endpoint for Predictive Analytics)
+ * Forecasts potential civic issues based on historical data, weather, etc.
+ * @returns {Promise<PredictionData>} An object containing AI-driven forecasts.
+ */
+export const fetchPredictionData = async (): Promise<PredictionData> => {
+  console.log("Fetching AI-powered predictive analytics...");
+  return new Promise(resolve => {
+    setTimeout(() => {
+      resolve({
+        cityWideRisk: RiskLevel.HIGH,
+        topCriticalAreas: [
+          { location: 'Ward 5, Near City Park', predictedIssue: 'Waste Management Overflow', severityScore: 85 },
+          { location: 'MG Road, Commercial District', predictedIssue: 'Road Damage (Potholes)', severityScore: 78 },
+          { location: 'Sector B, Indiranagar', predictedIssue: 'Street Lighting Outages', severityScore: 72 },
+          { location: 'Low-lying areas, Ward 9', predictedIssue: 'Water Logging (Monsoon Prep)', severityScore: 92 },
+          { location: 'Jayanagar, 3rd Cross', predictedIssue: 'Water Pipeline Stress', severityScore: 68 },
+        ],
+        expectedCategoryDistribution: [
+          { name: 'Waste Mgmt', value: 45 },
+          { name: 'Roads', value: 25 },
+          { name: 'Water Supply', value: 15 },
+          { name: 'Lighting', value: 10 },
+          { name: 'Other', value: 5 },
+        ],
+        actionableRecommendations: [
+          "Increase sanitation crew deployment in Ward 5 by 20%.",
+          "Conduct pre-monsoon audit of pothole repairs on MG Road.",
+          "Schedule proactive maintenance for street light circuits in Indiranagar.",
+          "Clear storm-water drains in Ward 9 and alert emergency teams.",
+        ],
+        heatmapUrl: '/heatmap-placeholder.png', // Using a static placeholder image
+      });
+    }, 1500);
+  });
 };
