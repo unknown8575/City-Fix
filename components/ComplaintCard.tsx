@@ -8,8 +8,12 @@ interface ComplaintCardProps {
   onStatusChange: (id: string, newStatus: ComplaintStatus) => void;
   onViewDetails: () => void;
   onRequestFeedback: () => void;
+  onAssignDepartment: (id: string, department: string) => void;
+  onOpenAssignModal: (complaint: Complaint) => void;
   isFeedbackLoading?: boolean;
   isUpdatingStatus?: boolean;
+  isAssigning?: boolean;
+  assigningTo?: string;
 }
 
 const getStatusColorClass = (status: ComplaintStatus) => {
@@ -23,8 +27,20 @@ const getStatusColorClass = (status: ComplaintStatus) => {
     }
 }
 
-const ComplaintCard: React.FC<ComplaintCardProps> = ({ complaint, onStatusChange, onViewDetails, onRequestFeedback, isFeedbackLoading, isUpdatingStatus }) => {
+const ComplaintCard: React.FC<ComplaintCardProps> = ({ 
+    complaint, 
+    onStatusChange, 
+    onViewDetails, 
+    onRequestFeedback, 
+    isFeedbackLoading, 
+    isUpdatingStatus,
+    onAssignDepartment,
+    onOpenAssignModal,
+    isAssigning,
+    assigningTo,
+}) => {
     const relevanceColor = complaint.aiRelevanceFlag === 'Actionable' ? 'text-action-green-500' : 'text-gray-500';
+    const TOP_DEPARTMENTS = ['Sanitation Dept.', 'Public Works Dept.', 'Water Board'];
 
     return (
         <div className="bg-neutral-white rounded-lg shadow-sm border-l-4 border-gov-blue-500 transition-all duration-300 flex flex-col">
@@ -48,31 +64,58 @@ const ComplaintCard: React.FC<ComplaintCardProps> = ({ complaint, onStatusChange
                     </div>
                 )}
 
-                <div className="text-xs text-gray-500 mt-3 mb-3">
+                <div className="text-xs text-gray-500 mt-3">
                     <p><strong>Location:</strong> {complaint.location}</p>
+                    <p><strong>Assigned Dept:</strong> {complaint.escalationDept || 'N/A'}</p>
                     <p><strong>Submitted:</strong> {complaint.submittedAt.toLocaleString()}</p>
                 </div>
             </div>
-            <div className="p-4 mt-auto">
+            <div className="p-4 mt-auto bg-neutral-light-gray/50 border-t border-neutral-gray space-y-3">
+                <div>
+                    <label className="text-xs font-semibold text-gray-600 block mb-2">
+                        Quick Assign Dept:
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                        {TOP_DEPARTMENTS.map(dept => (
+                            <Button
+                                key={dept}
+                                variant={complaint.escalationDept === dept ? 'primary' : 'outline'}
+                                className="!py-1 !px-2 text-xs flex-grow sm:flex-grow-0"
+                                onClick={() => onAssignDepartment(complaint.id, dept)}
+                                disabled={isUpdatingStatus || isAssigning || isFeedbackLoading}
+                            >
+                                {isAssigning && assigningTo === dept ? '...' : dept.replace(' Dept.', '')}
+                            </Button>
+                        ))}
+                         <Button
+                            variant="ghost"
+                            className="!py-1 !px-2 text-xs flex-grow sm:flex-grow-0"
+                            onClick={() => onOpenAssignModal(complaint)}
+                            disabled={isUpdatingStatus || isAssigning || isFeedbackLoading}
+                        >
+                            More...
+                        </Button>
+                    </div>
+                </div>
                 <div className="pt-3 border-t border-neutral-gray flex items-center justify-between gap-2">
                      <Button variant="ghost" className="!py-1 !px-2 text-xs" onClick={onViewDetails}>
                         View Details
                     </Button>
                     <div className="flex items-center gap-2 flex-wrap justify-end">
                         {complaint.status === ComplaintStatus.PENDING && (
-                            <Button variant="outline" className="!py-1 !px-2 text-xs" onClick={() => onStatusChange(complaint.id, ComplaintStatus.IN_PROGRESS)} disabled={isUpdatingStatus}>
+                            <Button variant="outline" className="!py-1 !px-2 text-xs" onClick={() => onStatusChange(complaint.id, ComplaintStatus.IN_PROGRESS)} disabled={isUpdatingStatus || isAssigning}>
                                 {isUpdatingStatus ? 'Starting...' : 'Start Work'}
                             </Button>
                         )}
                         {complaint.status === ComplaintStatus.IN_PROGRESS && (
-                            <Button variant="secondary" className="!py-1 !px-2 text-xs" onClick={() => onStatusChange(complaint.id, ComplaintStatus.RESOLVED)} disabled={isUpdatingStatus}>
+                            <Button variant="secondary" className="!py-1 !px-2 text-xs" onClick={() => onStatusChange(complaint.id, ComplaintStatus.RESOLVED)} disabled={isUpdatingStatus || isAssigning}>
                                 {isUpdatingStatus ? 'Resolving...' : 'Mark Resolved'}
                             </Button>
                         )}
                         {complaint.status === ComplaintStatus.RESOLVED && (
                              <>
                                 {!complaint.citizenSatisfactionScore ? (
-                                    <Button variant="primary" className="!py-1 !px-2 text-xs" onClick={onRequestFeedback} disabled={isFeedbackLoading || isUpdatingStatus}>
+                                    <Button variant="primary" className="!py-1 !px-2 text-xs" onClick={onRequestFeedback} disabled={isFeedbackLoading || isUpdatingStatus || isAssigning}>
                                         {isFeedbackLoading ? 'Sending...' : 'Request Feedback'}
                                     </Button>
                                 ) : (
@@ -80,7 +123,7 @@ const ComplaintCard: React.FC<ComplaintCardProps> = ({ complaint, onStatusChange
                                         Feedback: {complaint.citizenSatisfactionScore}/5 <StarIcon className="w-4 h-4 text-yellow-500 ml-1" />
                                     </div>
                                 )}
-                                <Button variant="ghost" className="!py-1 !px-2 text-xs" onClick={() => onStatusChange(complaint.id, ComplaintStatus.CLOSED)} disabled={isUpdatingStatus}>
+                                <Button variant="ghost" className="!py-1 !px-2 text-xs" onClick={() => onStatusChange(complaint.id, ComplaintStatus.CLOSED)} disabled={isUpdatingStatus || isAssigning}>
                                     {isUpdatingStatus ? 'Closing...' : 'Close Ticket'}
                                 </Button>
                             </>

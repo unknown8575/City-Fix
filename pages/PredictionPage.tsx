@@ -2,16 +2,46 @@ import React, { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useLocalization } from '../hooks/useLocalization';
 import { fetchPredictionData } from '../services/complaintService';
-import { PredictionData } from '../types';
+import { PredictionData, RiskLevel, CriticalArea } from '../types';
 import Spinner from '../components/Spinner';
-import RiskGauge from '../components/RiskGauge';
 import Button from '../components/Button';
-import { DocumentTextIcon, ExclamationTriangleIcon } from '../constants';
+import { DocumentTextIcon, LightBulbIcon, GlobeAltIcon, TruckIcon, BeakerIcon } from '../constants';
+import GeospatialHeatmap from '../components/GeospatialHeatmap';
+import DownloadReportModal, { ReportOptions } from '../components/DownloadReportModal';
+import { downloadCsv, generatePdfMock } from '../utils/downloadUtils';
+
+const MetricCard: React.FC<{
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+  label: string;
+  value: RiskLevel;
+}> = ({ icon: Icon, label, value }) => {
+  const riskConfig = {
+    [RiskLevel.LOW]: { color: 'border-action-green-500', text: 'text-action-green-500' },
+    [RiskLevel.MEDIUM]: { color: 'border-warning-orange-500', text: 'text-warning-orange-500' },
+    [RiskLevel.HIGH]: { color: 'border-red-500', text: 'text-red-500' },
+    [RiskLevel.CRITICAL]: { color: 'border-red-700', text: 'text-red-700' },
+  };
+  const { color, text } = riskConfig[value] || riskConfig[RiskLevel.LOW];
+
+  return (
+    <div className={`bg-neutral-white p-4 rounded-lg shadow-md border-l-8 ${color}`}>
+      <div className="flex items-center">
+        <Icon className={`h-10 w-10 mr-4 ${text}`} />
+        <div>
+          <p className="font-semibold text-neutral-dark-gray">{label}</p>
+          <p className={`text-3xl font-bold ${text}`}>{value}</p>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const PredictionPage: React.FC = () => {
     const { t } = useLocalization();
     const [data, setData] = useState<PredictionData | null>(null);
     const [loading, setLoading] = useState(true);
+    const [selectedLocation, setSelectedLocation] = useState<CriticalArea | null>(null);
+    const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
 
     useEffect(() => {
         const loadPrediction = async () => {
@@ -26,6 +56,27 @@ const PredictionPage: React.FC = () => {
         };
         loadPrediction();
     }, []);
+
+    const handleAreaClick = (area: CriticalArea) => {
+        setSelectedLocation(area.location === selectedLocation?.location ? null : area);
+    };
+    
+    const handleDownload = (options: ReportOptions) => {
+        if (!data) return;
+        console.log("Downloading report with options:", options);
+        setIsDownloadModalOpen(false);
+
+        if (options.format === 'csv') {
+            if (options.sections.includes('criticalAreas')) {
+                downloadCsv(data.topCriticalAreas, 'critical_areas_prediction.csv');
+            } else {
+                alert("Please select 'Top Critical Areas' to download a CSV report.");
+            }
+        } else {
+            // PDF generation
+            generatePdfMock(data, options);
+        }
+    };
 
     const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#6366F1'];
 
@@ -52,41 +103,50 @@ const PredictionPage: React.FC = () => {
                         <option>Next Month</option>
                     </select>
                 </div>
-                <Button variant="primary" className="!py-2 !px-4 text-sm flex items-center gap-2">
+                <Button variant="primary" onClick={() => setIsDownloadModalOpen(true)} className="!py-2 !px-4 text-sm flex items-center gap-2">
                     <DocumentTextIcon className="h-5 w-5"/>
                     {t('downloadReport')}
                 </Button>
             </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <MetricCard icon={GlobeAltIcon} label={t('cityWideRisk')} value={data.cityWideRisk} />
+                <MetricCard icon={TruckIcon} label={t('predictedTrafficCongestion')} value={data.predictedTrafficCongestion} />
+                <MetricCard icon={BeakerIcon} label={t('waterShortageRisk')} value={data.waterShortageRisk} />
+            </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* City-Wide Risk */}
-                <div className="bg-neutral-white p-6 rounded-lg shadow-md lg:col-span-1">
-                    <h2 className="text-xl font-bold text-neutral-dark-gray mb-4 text-center">{t('cityWideRisk')}</h2>
-                    <RiskGauge riskLevel={data.cityWideRisk} />
-                </div>
-
-                {/* Top Critical Areas */}
-                <div className="bg-neutral-white p-6 rounded-lg shadow-md lg:col-span-2">
+             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                 <div className="bg-neutral-white p-6 rounded-lg shadow-md">
                     <h2 className="text-xl font-bold text-neutral-dark-gray mb-4">{t('topCriticalAreas')}</h2>
-                    <ul className="space-y-3">
+                    <ul className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
                         {data.topCriticalAreas.map((area, index) => (
-                            <li key={index} className="flex items-center justify-between p-3 bg-neutral-light-gray rounded-md">
-                                <div>
-                                    <p className="font-semibold text-gov-blue-900">{area.location}</p>
-                                    <p className="text-sm text-gray-600">{area.predictedIssue}</p>
+                            <li key={index} 
+                                onClick={() => handleAreaClick(area)}
+                                className={`flex items-center justify-between p-3 rounded-md cursor-pointer transition-all duration-200 ${selectedLocation?.location === area.location ? 'bg-gov-blue-500 shadow-lg scale-105' : 'bg-neutral-light-gray hover:shadow-md hover:bg-gov-blue-500/10'}`}
+                            >
+                                <div className="flex-grow">
+                                    <p className={`font-semibold ${selectedLocation?.location === area.location ? 'text-white' : 'text-gov-blue-900'}`}>{area.location}</p>
+                                    <p className={`text-sm ${selectedLocation?.location === area.location ? 'text-blue-100' : 'text-gray-600'}`}>{area.predictedIssue}</p>
                                 </div>
-                                <div className="text-right">
-                                    <p className="font-bold text-lg text-red-500">{area.severityScore}</p>
-                                    <p className="text-xs text-gray-500">{t('severity')}</p>
+                                <div className={`text-right flex-shrink-0 ml-4 p-2 rounded-md ${selectedLocation?.location === area.location ? 'bg-white/20' : ''}`}>
+                                    <p className={`font-bold text-lg ${selectedLocation?.location === area.location ? 'text-white' : 'text-red-500'}`}>{area.severityScore}</p>
+                                    <p className={`text-xs ${selectedLocation?.location === area.location ? 'text-blue-100' : 'text-gray-500'}`}>{t('severity')}</p>
                                 </div>
                             </li>
                         ))}
                     </ul>
                 </div>
+                <div className="bg-neutral-white p-6 rounded-lg shadow-md">
+                    <h2 className="text-xl font-bold text-neutral-dark-gray mb-4">{t('geospatialRisk')}</h2>
+                    <GeospatialHeatmap 
+                        criticalAreas={data.topCriticalAreas}
+                        selectedLocation={selectedLocation}
+                        onAreaClick={handleAreaClick}
+                    />
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Expected Complaint Distribution */}
                 <div className="bg-neutral-white p-6 rounded-lg shadow-md">
                     <h2 className="text-xl font-bold text-neutral-dark-gray mb-4">{t('expectedComplaints')}</h2>
                     <ResponsiveContainer width="100%" height={300}>
@@ -101,24 +161,24 @@ const PredictionPage: React.FC = () => {
                         </PieChart>
                     </ResponsiveContainer>
                 </div>
-                
-                {/* Geospatial Risk Heatmap */}
                 <div className="bg-neutral-white p-6 rounded-lg shadow-md">
-                    <h2 className="text-xl font-bold text-neutral-dark-gray mb-4">{t('geospatialRisk')}</h2>
-                    <img src={data.heatmapUrl} alt="City Heatmap" className="w-full h-auto rounded-lg border-2 border-neutral-gray object-cover"/>
+                    <h2 className="text-xl font-bold text-neutral-dark-gray mb-4 flex items-center gap-2">
+                        <LightBulbIcon className="w-6 h-6 text-yellow-500"/>
+                        {t('actionableRecs')}
+                    </h2>
+                    <ul className="space-y-3 list-disc list-inside text-gray-700">
+                        {data.actionableRecommendations.map((rec, index) => (
+                            <li key={index}>{rec}</li>
+                        ))}
+                    </ul>
                 </div>
             </div>
-
-            {/* Actionable Recommendations */}
-            <div className="bg-neutral-white p-6 rounded-lg shadow-md">
-                <h2 className="text-xl font-bold text-neutral-dark-gray mb-4 flex items-center gap-2"><ExclamationTriangleIcon className="w-6 h-6 text-warning-orange-500"/>{t('actionableRecs')}</h2>
-                <ul className="space-y-2 list-disc list-inside text-gray-700">
-                    {data.actionableRecommendations.map((rec, index) => (
-                        <li key={index}>{rec}</li>
-                    ))}
-                </ul>
-            </div>
-
+            
+            <DownloadReportModal 
+                isOpen={isDownloadModalOpen}
+                onClose={() => setIsDownloadModalOpen(false)}
+                onDownload={handleDownload}
+            />
         </div>
     );
 };

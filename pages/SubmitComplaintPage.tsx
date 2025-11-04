@@ -105,6 +105,15 @@ const SubmitComplaintPage: React.FC = () => {
       URL.revokeObjectURL(photoPreview);
     }
     if (file) {
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        setFormData(prev => ({ ...prev, photo: null }));
+        setPhotoPreview(null);
+        setFormErrors(prev => ({ ...prev, photo: t('unsupportedPhotoType') }));
+        setFormValid(prev => ({ ...prev, photo: false }));
+        return;
+      }
+
       if (file.size < 5 * 1024 * 1024) { // Max 5MB
         setFormData((prev) => ({ ...prev, photo: file }));
         setPhotoPreview(URL.createObjectURL(file));
@@ -261,12 +270,12 @@ const SubmitComplaintPage: React.FC = () => {
                                     </span>
                                     <p className="pl-1">or drag and drop</p>
                                 </div>
-                                <p className="text-xs text-gray-500">PNG, JPG up to 5MB</p>
+                                <p className="text-xs text-gray-500">PNG, JPG, WEBP up to 5MB</p>
                             </label>
                         )}
                     </div>
                 </div>
-                <input id="photo-upload" name="photo-upload" type="file" className="sr-only" onChange={handlePhotoUpload} accept="image/*" />
+                <input id="photo-upload" name="photo-upload" type="file" className="sr-only" onChange={handlePhotoUpload} accept="image/jpeg,image/png,image/webp" />
                  {formErrors.photo && <p className="mt-1 text-sm text-red-500" role="alert">{formErrors.photo}</p>}
             </div>
 

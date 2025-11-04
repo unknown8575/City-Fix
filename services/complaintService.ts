@@ -451,6 +451,36 @@ export const updateComplaintStatus = async (
   });
 };
 
+export const updateComplaintDepartment = async (
+  complaintId: string,
+  newDepartment: string,
+  adminId: string = "Admin #007" // Mock admin ID
+): Promise<Complaint> => {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      const complaintIndex = complaints.findIndex(c => c.id === complaintId);
+      if (complaintIndex === -1) {
+        return reject(new Error("Complaint not found"));
+      }
+      
+      const updatedComplaint = { ...complaints[complaintIndex] };
+      updatedComplaint.escalationDept = newDepartment;
+      updatedComplaint.history = [
+        ...updatedComplaint.history,
+        { 
+          status: updatedComplaint.status, 
+          timestamp: new Date(), 
+          notes: `Assigned to ${newDepartment} by ${adminId}.` 
+        }
+      ];
+
+      complaints[complaintIndex] = updatedComplaint;
+
+      resolve(updatedComplaint);
+    }, 500); // Simulate network delay
+  });
+};
+
 export const confirmResolutionWithPhoto = async (
   complaintId: string,
   photo: File,
@@ -526,7 +556,7 @@ export const analyzeImage = async (imageFile: File): Promise<{ category: string;
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-2.5-pro',
       contents: { parts: [imagePart, textPart] },
       config: {
         responseMimeType: "application/json",
@@ -563,6 +593,8 @@ export const fetchPredictionData = async (): Promise<PredictionData> => {
     setTimeout(() => {
       resolve({
         cityWideRisk: RiskLevel.HIGH,
+        predictedTrafficCongestion: RiskLevel.MEDIUM,
+        waterShortageRisk: RiskLevel.LOW,
         topCriticalAreas: [
           { location: 'Ward 5, Near City Park', predictedIssue: 'Waste Management Overflow', severityScore: 85 },
           { location: 'MG Road, Commercial District', predictedIssue: 'Road Damage (Potholes)', severityScore: 78 },
@@ -583,7 +615,6 @@ export const fetchPredictionData = async (): Promise<PredictionData> => {
           "Schedule proactive maintenance for street light circuits in Indiranagar.",
           "Clear storm-water drains in Ward 9 and alert emergency teams.",
         ],
-        heatmapUrl: '/heatmap-placeholder.png', // Using a static placeholder image
       });
     }, 1500);
   });

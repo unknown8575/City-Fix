@@ -84,8 +84,9 @@ export interface CriticalArea {
 
 export interface PredictionData {
     cityWideRisk: RiskLevel;
+    predictedTrafficCongestion: RiskLevel;
+    waterShortageRisk: RiskLevel;
     topCriticalAreas: CriticalArea[];
     expectedCategoryDistribution: { name: string; value: number }[];
     actionableRecommendations: string[];
-    heatmapUrl: string; // URL to a map image overlay
 }

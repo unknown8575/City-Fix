@@ -2,6 +2,16 @@
 
 import React from 'react';
 
+export const DEPARTMENTS = [
+  'Sanitation Dept.',
+  'Public Works Dept.',
+  'Electrical Dept.',
+  'Water Board',
+  'Parks & Recreation',
+  'Traffic Police',
+  'Other'
+];
+
 export const CheckCircleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
     <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm13.36-1.814a.75.75 0 1 0-1.06-1.06l-3.103 3.103-1.53-1.53a.75.75 0 0 0-1.06 1.06l2.06 2.06a.75.75 0 0 0 1.06 0l3.624-3.623Z" clipRule="evenodd" />
@@ -161,6 +171,12 @@ export const StarIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     </svg>
 );
 
+export const LightBulbIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 14.25c0-1.282.97-2.325 2.188-2.528M9.135 11.25c.21.312.443.606.696.887m-2.472-5.492a5.963 5.963 0 0 1 8.312 0m-8.312 0a5.963 5.963 0 0 0-1.284 3.31M15.865 11.25a5.963 5.963 0 0 1-1.284 3.31m0 0a5.963 5.963 0 0 1-8.312 0m8.312 0a5.963 5.963 0 0 0 1.284-3.31M12 11.25a2.25 2.25 0 0 0-2.25 2.25v.75m2.25-3a2.25 2.25 0 0 1 2.25 2.25v.75m0-3h-4.5M12 21a5.25 5.25 0 0 0 5.25-5.25H6.75a5.25 5.25 0 0 0 5.25 5.25Z" />
+    </svg>
+);
+
 export const ArrowRightOnRectangleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m-3-6l3 3m0 0l-3 3m3-3H9" />
@@ -183,4 +199,16 @@ export const CheckIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" {...props}>
     <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.052-.143z" clipRule="evenodd" />
   </svg>
+);
+
+export const TruckIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.125-.504 1.125-1.125V14.25m-17.25 4.5v-1.875a3.375 3.375 0 013.375-3.375h9.75a3.375 3.375 0 013.375 3.375v1.875M3.375 14.25v-1.875a3.375 3.375 0 013.375-3.375h9.75a3.375 3.375 0 013.375 3.375v1.875" />
+    </svg>
+);
+
+export const BeakerIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.25M9.75 3.104a2.25 2.25 0 011.08 1.921v4.774a2.25 2.25 0 00.659 1.591L15.5 14.25M9.75 3.104a2.25 2.25 0 00-1.08 1.921v4.774a2.25 2.25 0 01-.659 1.591L3.5 14.25m6.25 0v5.625a2.25 2.25 0 01-2.25 2.25H7.5a2.25 2.25 0 01-2.25-2.25v-5.625m3.75 0v5.625a2.25 2.25 0 002.25 2.25h1.5a2.25 2.25 0 002.25-2.25v-5.625" />
+    </svg>
 );

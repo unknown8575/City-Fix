@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { fetchAllComplaints, fetchDashboardStats, updateComplaintStatus, sendFeedbackRequest } from '../services/complaintService';
+import { fetchAllComplaints, fetchDashboardStats, updateComplaintStatus, sendFeedbackRequest, updateComplaintDepartment } from '../services/complaintService';
 import { Complaint, ComplaintStatus, DashboardStats } from '../types';
 import Button from '../components/Button';
 import { ClockIcon, FolderOpenIcon, ExclamationTriangleIcon, ArrowPathIcon, MagnifyingGlassCircleIcon, CogIcon } from '../constants';
@@ -9,6 +9,7 @@ import { NotificationSettings } from '../types';
 import DashboardStatCard from '../components/DashboardStatCard';
 import ComplaintCard from '../components/ComplaintCard';
 import ComplaintDetailsModal from '../components/ComplaintDetailsModal';
+import DepartmentAssignModal from '../components/DepartmentAssignModal';
 
 
 // --- Main Page Component ---
@@ -24,6 +25,8 @@ const AdminDashboardPage: React.FC = () => {
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [feedbackLoading, setFeedbackLoading] = useState<string | null>(null);
     const [updatingStatus, setUpdatingStatus] = useState<Record<string, boolean>>({});
+    const [departmentAssignment, setDepartmentAssignment] = useState<{ complaintId: string; department: string } | null>(null);
+    const [assignModalComplaint, setAssignModalComplaint] = useState<Complaint | null>(null);
     const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
         newComplaint: true,
         statusChange: true,
@@ -80,6 +83,25 @@ const AdminDashboardPage: React.FC = () => {
         }
     };
 
+    const handleAssignDepartment = async (complaintId: string, newDepartment: string) => {
+        setDepartmentAssignment({ complaintId, department: newDepartment });
+        try {
+            const updatedComplaint = await updateComplaintDepartment(complaintId, newDepartment);
+            const newComplaints = complaints.map(c => 
+                c.id === complaintId ? updatedComplaint : c
+            );
+            setComplaints(newComplaints);
+            if (assignModalComplaint) {
+                setAssignModalComplaint(null);
+            }
+        } catch (err) {
+            setError(`Failed to assign department for ${complaintId}. Please try again.`);
+            console.error(err);
+        } finally {
+            setDepartmentAssignment(null);
+        }
+    };
+
 
     const handleRequestFeedback = async (complaintId: string) => {
         const complaint = complaints.find(c => c.id === complaintId);
@@ -126,6 +148,10 @@ const AdminDashboardPage: React.FC = () => {
         setNotificationSettings(newSettings);
         console.log("Notification settings saved:", newSettings);
         setIsSettingsOpen(false);
+    };
+
+    const handleOpenAssignModal = (complaint: Complaint) => {
+        setAssignModalComplaint(complaint);
     };
 
     const filteredComplaints = useMemo(() => {
@@ -191,8 +217,12 @@ const AdminDashboardPage: React.FC = () => {
                                 onStatusChange={handleUpdateStatus} 
                                 onViewDetails={() => handleViewDetails(complaint)}
                                 onRequestFeedback={() => handleRequestFeedback(complaint.id)}
+                                onAssignDepartment={handleAssignDepartment}
+                                onOpenAssignModal={handleOpenAssignModal}
                                 isFeedbackLoading={feedbackLoading === complaint.id}
                                 isUpdatingStatus={!!updatingStatus[complaint.id]}
+                                isAssigning={departmentAssignment?.complaintId === complaint.id}
+                                assigningTo={departmentAssignment?.complaintId === complaint.id ? departmentAssignment.department : undefined}
                             />
                         ))
                     ) : (
@@ -212,6 +242,14 @@ const AdminDashboardPage: React.FC = () => {
                 isOpen={!!selectedComplaint}
                 onClose={handleCloseModal}
                 complaint={selectedComplaint}
+            />
+
+            <DepartmentAssignModal
+                isOpen={!!assignModalComplaint}
+                onClose={() => setAssignModalComplaint(null)}
+                complaint={assignModalComplaint}
+                onAssign={handleAssignDepartment}
+                isAssigning={!!departmentAssignment}
             />
         </div>
     );

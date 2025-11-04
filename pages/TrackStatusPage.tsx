@@ -6,7 +6,9 @@ import { Complaint, ComplaintStatus } from '../types';
 import { fetchComplaintById, updateComplaintStatus, confirmResolutionWithPhoto } from '../services/complaintService';
 import ComplaintProgressStepper from '../components/ComplaintProgressStepper';
 import ComplaintHistoryTimeline from '../components/ComplaintHistoryTimeline';
-import { PhotoIcon } from '../constants';
+import { PhotoIcon, DocumentTextIcon, CheckCircleIcon, ClockIcon } from '../constants';
+import StatusBadge from '../components/StatusBadge';
+import Spinner from '../components/Spinner';
 
 
 const TrackStatusPage: React.FC = () => {
@@ -19,6 +21,7 @@ const TrackStatusPage: React.FC = () => {
   const [satisfactionResponse, setSatisfactionResponse] = useState<'yes' | null>(null);
   const [resolutionPhoto, setResolutionPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('details');
 
   const handleTrack = async () => {
     if (!ticketId) {
@@ -135,9 +138,20 @@ const TrackStatusPage: React.FC = () => {
       }
   };
 
+  const TabButton: React.FC<{ name: string; label: string; icon: React.FC<React.SVGProps<SVGSVGElement>> }> = ({ name, label, icon: Icon }) => (
+      <button
+          onClick={() => setActiveTab(name)}
+          className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${activeTab === name ? 'border-gov-blue-500 text-gov-blue-500' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'}`}
+          aria-current={activeTab === name ? 'page' : undefined}
+      >
+          <Icon className="h-5 w-5"/>
+          {label}
+      </button>
+  );
+
   return (
-    <div className="max-w-3xl mx-auto">
-      <div className="bg-neutral-white p-6 sm:p-8 rounded-lg shadow-md">
+    <div className="max-w-4xl mx-auto">
+      <div className="bg-neutral-white p-6 sm:p-8 rounded-lg shadow-md mb-8">
         <h1 className="text-3xl font-bold text-neutral-dark-gray mb-6 text-center">Track Complaint Status</h1>
         <div className="flex flex-col sm:flex-row items-end gap-4">
           <Input
@@ -155,49 +169,77 @@ const TrackStatusPage: React.FC = () => {
         {error && <p className="mt-4 text-center text-red-500">{error}</p>}
       </div>
 
+      {loading && <Spinner />}
+
       {complaint && (
-        <div className="bg-neutral-white p-6 sm:p-8 rounded-lg shadow-md mt-8">
-            <h2 className="text-2xl font-bold text-gov-blue-900 mb-6 text-center">Complaint Progress</h2>
-            <div className="mb-8">
+        <div className="bg-neutral-white rounded-lg shadow-md animated-section">
+            <div className="p-6 border-b border-neutral-gray flex flex-col sm:flex-row justify-between items-start gap-4">
+                <div>
+                    <h2 className="text-2xl font-bold text-gov-blue-900">Ticket ID: {complaint.id}</h2>
+                    <p className="text-gray-600 mt-1">Category: <span className="font-medium text-neutral-dark-gray">{complaint.category}</span></p>
+                </div>
+                <StatusBadge status={complaint.status} />
+            </div>
+
+            <div className="p-6">
                 <ComplaintProgressStepper status={complaint.status} />
             </div>
 
-            <h2 className="text-2xl font-bold text-gov-blue-900 mb-4 pt-6 border-t">Complaint Details</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                <div><strong className="text-neutral-dark-gray">Ticket ID:</strong> {complaint.id}</div>
-                <div><strong className="text-neutral-dark-gray">Status:</strong> <span className={`font-bold ${complaint.status === ComplaintStatus.RESOLVED ? 'text-action-green-500' : 'text-gov-blue-500'}`}>{complaint.status}</span></div>
-                <div><strong className="text-neutral-dark-gray">Category:</strong> {complaint.category}</div>
-                <div><strong className="text-neutral-dark-gray">Submitted:</strong> {complaint.submittedAt.toLocaleDateString()}</div>
+            <div className="border-b border-neutral-gray px-6">
+                <nav className="-mb-px flex space-x-6" aria-label="Tabs">
+                    <TabButton name="details" label="Details" icon={DocumentTextIcon} />
+                    <TabButton name="evidence" label="Evidence" icon={PhotoIcon} />
+                    <TabButton name="history" label="History" icon={ClockIcon} />
+                </nav>
             </div>
-            
-            <div className="space-y-4">
-                <p className="text-gray-700 bg-neutral-light-gray p-4 rounded-lg"><strong className="block text-neutral-dark-gray mb-1">Your Description:</strong>{complaint.description}</p>
-                {complaint.aiSummary && (
-                    <p className="text-gray-700 bg-blue-50 p-4 rounded-lg"><strong className="block text-gov-blue-900 mb-1">AI Summary:</strong>{complaint.aiSummary}</p>
+
+            <div className="p-6">
+                {activeTab === 'details' && (
+                    <div className="space-y-4">
+                        <div className="space-y-1">
+                            <h3 className="text-sm font-semibold text-gray-500">Submitted On</h3>
+                            <p className="text-neutral-dark-gray">{complaint.submittedAt.toLocaleString()}</p>
+                        </div>
+                         <div className="space-y-1">
+                            <h3 className="text-sm font-semibold text-gray-500">Location</h3>
+                            <p className="text-neutral-dark-gray">{complaint.location}</p>
+                        </div>
+                        <div className="space-y-1">
+                            <h3 className="text-sm font-semibold text-gray-500">Your Description</h3>
+                            <p className="text-neutral-dark-gray bg-neutral-light-gray p-3 rounded-md">{complaint.description}</p>
+                        </div>
+                        {complaint.aiSummary && (
+                             <div className="space-y-1">
+                                <h3 className="text-sm font-semibold text-blue-800">AI Summary</h3>
+                                <p className="text-neutral-dark-gray bg-blue-50 p-3 rounded-md border border-blue-200 italic">"{complaint.aiSummary}"</p>
+                            </div>
+                        )}
+                    </div>
+                )}
+                {activeTab === 'evidence' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        {complaint.photoBeforeUrl ? (
+                            <div>
+                                <h3 className="font-bold text-neutral-dark-gray mb-2">Before</h3>
+                                <img src={complaint.photoBeforeUrl} alt="Before" className="rounded-lg shadow-sm w-full h-auto object-cover"/>
+                            </div>
+                        ) : <p className="text-gray-500">No 'Before' photo was submitted.</p>}
+                        {complaint.photoAfterUrl ? (
+                             <div>
+                                <h3 className="font-bold text-neutral-dark-gray mb-2">After</h3>
+                                <img src={complaint.photoAfterUrl} alt="After" className="rounded-lg shadow-sm w-full h-auto object-cover"/>
+                            </div>
+                        ) : <p className="text-gray-500">No 'After' photo available yet.</p>}
+                    </div>
+                )}
+                {activeTab === 'history' && (
+                     <ComplaintHistoryTimeline history={complaint.history} />
                 )}
             </div>
 
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-6">
-                {complaint.photoBeforeUrl && (
-                    <div>
-                        <h3 className="font-bold text-neutral-dark-gray mb-2">Before</h3>
-                        <img src={complaint.photoBeforeUrl} alt="Before" className="rounded-lg shadow-sm w-full h-auto object-cover"/>
-                    </div>
-                )}
-                {complaint.photoAfterUrl && (
-                     <div>
-                        <h3 className="font-bold text-neutral-dark-gray mb-2">After</h3>
-                        <img src={complaint.photoAfterUrl} alt="After" className="rounded-lg shadow-sm w-full h-auto object-cover"/>
-                    </div>
-                )}
-            </div>
-            
-            <h2 className="text-2xl font-bold text-gov-blue-900 mt-8 mb-4">Status History</h2>
-            <ComplaintHistoryTimeline history={complaint.history} />
 
             {complaint.status === ComplaintStatus.RESOLVED && (
-                <div className="mt-8 pt-6 border-t border-neutral-gray bg-gov-blue-500/10 p-6 rounded-lg">
+                <div className="border-t border-neutral-gray bg-neutral-light-gray p-6 rounded-b-lg">
                     {satisfactionResponse === null ? (
                         <>
                             <h3 className="text-xl font-bold text-neutral-dark-gray mb-4 text-center">The administration has marked this issue as resolved. Are you satisfied with the resolution?</h3>
@@ -207,41 +249,39 @@ const TrackStatusPage: React.FC = () => {
                             </div>
                         </>
                     ) : (
-                        <>
-                            <h3 className="text-xl font-bold text-neutral-dark-gray mb-4 text-center">Thank you for your confirmation!</h3>
+                        <div className="max-w-md mx-auto">
+                            <h3 className="text-xl font-bold text-neutral-dark-gray mb-2 text-center">Thank you for your confirmation!</h3>
                             <p className="text-center text-gray-700 mb-6">Uploading a photo of the resolution helps us verify the work and maintain records.</p>
                             
-                            <div className="max-w-md mx-auto">
-                                <div>
-                                    <label htmlFor="resolution-photo-upload" className="block text-sm font-medium text-gray-700 mb-2">Upload 'After' Photo</label>
-                                    <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-                                        <div className="space-y-1 text-center">
-                                            {photoPreview ? (
-                                                <img src={photoPreview} alt="Resolution preview" className="mx-auto h-32 w-auto rounded-md shadow-sm" />
-                                            ) : (
-                                                <PhotoIcon className="mx-auto h-12 w-12 text-gray-400" />
-                                            )}
-                                            <div className="flex text-sm text-gray-600 justify-center">
-                                                <label htmlFor="resolution-photo-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-gov-blue-500 hover:text-gov-blue-900 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-gov-blue-500">
-                                                    <span>{resolutionPhoto ? 'Change photo' : 'Select a photo'}</span>
-                                                    <input id="resolution-photo-upload" name="resolution-photo" type="file" className="sr-only" onChange={handlePhotoUpload} accept="image/*" />
-                                                </label>
-                                            </div>
-                                            <p className="text-xs text-gray-500">PNG, JPG up to 5MB</p>
+                            <div>
+                                <label htmlFor="resolution-photo-upload" className="block text-sm font-medium text-gray-700 mb-2">Upload 'After' Photo</label>
+                                <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                                    <div className="space-y-1 text-center">
+                                        {photoPreview ? (
+                                            <img src={photoPreview} alt="Resolution preview" className="mx-auto h-32 w-auto rounded-md shadow-sm" />
+                                        ) : (
+                                            <PhotoIcon className="mx-auto h-12 w-12 text-gray-400" />
+                                        )}
+                                        <div className="flex text-sm text-gray-600 justify-center">
+                                            <label htmlFor="resolution-photo-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-gov-blue-500 hover:text-gov-blue-900 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-gov-blue-500">
+                                                <span>{resolutionPhoto ? 'Change photo' : 'Select a photo'}</span>
+                                                <input id="resolution-photo-upload" name="resolution-photo" type="file" className="sr-only" onChange={handlePhotoUpload} accept="image/*" />
+                                            </label>
                                         </div>
+                                        <p className="text-xs text-gray-500">PNG, JPG up to 5MB</p>
                                     </div>
                                 </div>
-                            
-                                <div className="mt-6 flex flex-col gap-4">
-                                    <Button variant="secondary" onClick={handleConfirmAndClose} disabled={actionLoading || !resolutionPhoto}>
-                                        {actionLoading ? 'Uploading...' : 'Upload Photo & Close Ticket'}
-                                    </Button>
-                                    <Button variant="ghost" onClick={() => handleCitizenAction('close')} disabled={actionLoading}>
-                                        Close Ticket Without Photo
-                                    </Button>
-                                </div>
                             </div>
-                        </>
+                        
+                            <div className="mt-6 flex flex-col gap-4">
+                                <Button variant="secondary" onClick={handleConfirmAndClose} disabled={actionLoading || !resolutionPhoto}>
+                                    {actionLoading ? 'Uploading...' : 'Upload Photo & Close Ticket'}
+                                </Button>
+                                <Button variant="ghost" onClick={() => handleCitizenAction('close')} disabled={actionLoading}>
+                                    Close Ticket Without Photo
+                                </Button>
+                            </div>
+                        </div>
                     )}
                 </div>
             )}

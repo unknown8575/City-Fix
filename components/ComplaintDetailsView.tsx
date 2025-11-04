@@ -1,7 +1,7 @@
 import React from 'react';
 import { Complaint } from '../types';
 import ComplaintHistoryTimeline from './ComplaintHistoryTimeline';
-import { ExclamationTriangleIcon, CheckCircleIcon } from '../constants';
+import { ExclamationTriangleIcon, CheckCircleIcon, LightBulbIcon } from '../constants';
 
 interface ComplaintDetailsViewProps {
   complaint: Complaint;
@@ -48,15 +48,48 @@ const ComplaintDetailsView: React.FC<ComplaintDetailsViewProps> = ({ complaint }
       </div>
       
       {/* AI Insights Section */}
-      <div className="bg-blue-50 p-4 rounded-lg shadow-sm">
-        <h3 className="text-lg font-bold text-gov-blue-900 mb-4 border-b border-blue-200 pb-2">AI Insights (XAI)</h3>
-        <div className="space-y-3 text-sm">
-            {complaint.aiSummary && <p><strong>Summary:</strong> {complaint.aiSummary}</p>}
-            {complaint.aiActionRecommendation && <p><strong>Recommendation:</strong> {complaint.aiActionRecommendation}</p>}
-            <div className="flex items-center gap-6 flex-wrap pt-2">
+      <div className="bg-blue-50 p-6 rounded-lg shadow-sm border border-blue-200">
+        <div className="mb-6">
+            <h3 className="text-xl font-bold text-gov-blue-900">AI Insights (XAI)</h3>
+            <p className="text-sm text-gray-600">Explainable AI analysis to aid in decision-making.</p>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            {/* AI Summary */}
+            {complaint.aiSummary && (
+                <div className="bg-white p-4 rounded-lg border border-neutral-gray">
+                    <h4 className="font-semibold text-neutral-dark-gray mb-2">AI Summary</h4>
+                    <blockquote className="text-neutral-dark-gray italic border-l-4 border-gov-blue-500 pl-4">
+                        {complaint.aiSummary}
+                    </blockquote>
+                </div>
+            )}
+            
+            {/* AI Recommendation */}
+            {complaint.aiActionRecommendation && (
+                <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200 flex items-start gap-4">
+                    <div className="flex-shrink-0">
+                        <LightBulbIcon className="w-6 h-6 text-yellow-500" />
+                    </div>
+                    <div>
+                        <h4 className="font-semibold text-yellow-800 mb-1">Action Recommendation</h4>
+                        <p className="text-yellow-900">{complaint.aiActionRecommendation}</p>
+                    </div>
+                </div>
+            )}
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            {/* Triage */}
+            <div className="space-y-3">
+                <h4 className="font-semibold text-neutral-dark-gray mb-2">Triage Suggestions</h4>
+                <div className="flex items-center gap-2">
+                    <strong className="text-gray-600 text-sm min-w-[120px]">Suggested Dept:</strong>
+                    <span className="font-semibold text-gov-blue-900">{complaint.escalationDept || 'N/A'}</span>
+                </div>
                 {complaint.aiPriority && (
                     <div className="flex items-center gap-2">
-                        <strong className="text-gray-600">Priority:</strong>
+                        <strong className="text-gray-600 text-sm min-w-[120px]">Priority Level:</strong>
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${getPriorityColor(complaint.aiPriority)}`}>
                             <ExclamationTriangleIcon className="w-4 h-4" />
                             {complaint.aiPriority}
@@ -65,7 +98,7 @@ const ComplaintDetailsView: React.FC<ComplaintDetailsViewProps> = ({ complaint }
                 )}
                 {complaint.aiRelevanceFlag && (
                     <div className="flex items-center gap-2">
-                        <strong className="text-gray-600">Relevance:</strong>
+                        <strong className="text-gray-600 text-sm min-w-[120px]">Relevance Flag:</strong>
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${getRelevanceColor(complaint.aiRelevanceFlag)}`}>
                             {complaint.aiRelevanceFlag === 'Actionable' && <CheckCircleIcon className="w-4 h-4" />}
                             {complaint.aiRelevanceFlag}
@@ -73,14 +106,38 @@ const ComplaintDetailsView: React.FC<ComplaintDetailsViewProps> = ({ complaint }
                     </div>
                 )}
             </div>
-            {complaint.aiJustification && <p><strong>Justification:</strong> {complaint.aiJustification}</p>}
-            {complaint.escalationDept && <p><strong>Suggested Dept:</strong> {complaint.escalationDept}</p>}
-            {complaint.isDuplicateOf && (
-                <p className="text-warning-orange-500 font-semibold">
-                    <strong>Duplicate Detected:</strong> Similar to {complaint.isDuplicateOf}
-                </p>
+            
+            {/* Justification */}
+            {complaint.aiJustification && (
+                <div>
+                     <h4 className="font-semibold text-neutral-dark-gray mb-2">Justification</h4>
+                     <p className="text-sm text-gray-700">{complaint.aiJustification}</p>
+                </div>
             )}
-            {complaint.aiConfidence && <p><strong>Confidence Score:</strong> {complaint.aiConfidence}%</p>}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-blue-200">
+            {/* Confidence */}
+            {complaint.aiConfidence && (
+                <div>
+                    <h4 className="font-semibold text-neutral-dark-gray mb-2">Confidence Score</h4>
+                    <div className="flex items-center gap-3">
+                        <div className="w-full bg-blue-200 rounded-full h-2.5">
+                            <div className="bg-gov-blue-500 h-2.5 rounded-full" style={{ width: `${complaint.aiConfidence}%` }}></div>
+                        </div>
+                        <span className="font-bold text-gov-blue-900">{complaint.aiConfidence}%</span>
+                    </div>
+                </div>
+            )}
+             {/* Duplicate */}
+            {complaint.isDuplicateOf && (
+                <div className="bg-orange-100 border border-orange-200 p-3 rounded-lg">
+                    <h4 className="font-semibold text-orange-800">Duplicate Detected</h4>
+                    <p className="text-sm text-orange-700">
+                        This complaint seems similar to ticket <span className="font-bold">{complaint.isDuplicateOf}</span>.
+                    </p>
+                </div>
+            )}
         </div>
       </div>
       
