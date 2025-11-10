@@ -6,6 +6,7 @@ import Button from '../components/Button';
 import { useLocalization } from '../hooks/useLocalization';
 import { PhotoIcon, MapPinIcon, SparklesIcon, CheckCircleIcon } from '../constants';
 import { submitComplaint, analyzeImage } from '../services/complaintService';
+import { compressImage } from '../utils/fileUtils';
 
 type FormState = {
   category: string;
@@ -96,7 +97,7 @@ const SubmitComplaintPage: React.FC = () => {
     validateField(name, value);
   };
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     setAnalysisCompleted(false);
     setAnalysisError('');
@@ -114,11 +115,18 @@ const SubmitComplaintPage: React.FC = () => {
         return;
       }
 
-      if (file.size < 5 * 1024 * 1024) { // Max 5MB
-        setFormData((prev) => ({ ...prev, photo: file }));
-        setPhotoPreview(URL.createObjectURL(file));
-        setFormErrors((prev) => ({ ...prev, photo: undefined }));
-        setFormValid((prev) => ({ ...prev, photo: true }));
+      if (file.size < 10 * 1024 * 1024) { // Max 10MB original file size
+        try {
+          const compressedFile = await compressImage(file);
+          setFormData((prev) => ({ ...prev, photo: compressedFile }));
+          setPhotoPreview(URL.createObjectURL(compressedFile));
+          setFormErrors((prev) => ({ ...prev, photo: undefined }));
+          setFormValid((prev) => ({ ...prev, photo: true }));
+        } catch (err) {
+            console.error("Image compression failed:", err);
+            setFormErrors(prev => ({ ...prev, photo: "Could not process image. Please try another one." }));
+            setFormValid(prev => ({ ...prev, photo: false }));
+        }
       } else {
         setFormData((prev) => ({ ...prev, photo: null }));
         setPhotoPreview(null);
@@ -270,7 +278,7 @@ const SubmitComplaintPage: React.FC = () => {
                                     </span>
                                     <p className="pl-1">or drag and drop</p>
                                 </div>
-                                <p className="text-xs text-gray-500">PNG, JPG, WEBP up to 5MB</p>
+                                <p className="text-xs text-gray-500">PNG, JPG, WEBP up to 10MB</p>
                             </label>
                         )}
                     </div>
@@ -280,13 +288,28 @@ const SubmitComplaintPage: React.FC = () => {
             </div>
 
             {formData.photo && (
-                <div className="mt-4 flex flex-col sm:flex-row items-center gap-4">
-                    <Button type="button" variant="primary" onClick={handleImageAnalysis} disabled={isAnalyzing || analysisCompleted} className="flex items-center gap-2">
-                        <SparklesIcon className={`h-5 w-5 ${isAnalyzing ? 'animate-spin' : ''}`} />
-                        {isAnalyzing ? 'Analyzing Image...' : (analysisCompleted ? 'Analysis Complete' : 'Analyze with AI')}
-                    </Button>
-                    {analysisCompleted && <p className="text-sm text-action-green-500 flex items-center gap-1"><CheckCircleIcon className="w-5 h-5"/>AI has filled in the details below. Please review them.</p>}
-                    {analysisError && <p className="text-sm text-red-500">{analysisError}</p>}
+                <div className="mt-4 p-4 bg-neutral-light-gray rounded-lg text-center space-y-2">
+                    {isAnalyzing ? (
+                        <div className="flex flex-col items-center justify-center">
+                            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-gov-blue-500 mb-2"></div>
+                            <p className="text-sm text-neutral-dark-gray font-semibold">AI is analyzing your image...</p>
+                        </div>
+                    ) : analysisError ? (
+                        <div>
+                            <p className="text-sm text-red-600 mb-2">{analysisError}</p>
+                            <Button type="button" variant="outline" onClick={handleImageAnalysis}>Retry Analysis</Button>
+                        </div>
+                    ) : (
+                        <div>
+                            <h4 className="font-semibold text-neutral-dark-gray">Next Step:</h4>
+                            <p className="text-sm text-gray-600 mb-2">Let AI help fill out the form based on your photo.</p>
+                            <Button type="button" variant="primary" onClick={handleImageAnalysis} className="flex items-center gap-2 mx-auto">
+                                <SparklesIcon className="h-5 w-5" />
+                                {analysisCompleted ? 'Re-analyze with AI' : 'Analyze with AI'}
+                            </Button>
+                            {analysisCompleted && <p className="text-sm text-action-green-500 flex items-center gap-1 justify-center mt-2"><CheckCircleIcon className="w-5 h-5"/>AI has filled in details below. Please review.</p>}
+                        </div>
+                    )}
                 </div>
             )}
         </fieldset>

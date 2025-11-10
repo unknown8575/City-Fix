@@ -7,6 +7,7 @@ export enum ComplaintStatus {
   RESOLVED = 'Resolved',
   CLOSED = 'Closed',
   DUPLICATE = 'Duplicate',
+  REOPENED = 'Reopened',
 }
 
 export interface Complaint {
@@ -29,10 +30,15 @@ export interface Complaint {
   aiRelevanceFlag?: 'Actionable' | 'Normal Complaint';
   aiActionRecommendation?: string;
   citizenSatisfactionScore?: number; // Score from 1-5
+  assignedOfficial?: {
+    name: string;
+    photoUrl: string;
+  };
   history: {
     status: ComplaintStatus;
     timestamp: Date;
     notes: string;
+    actor: 'Citizen' | 'Admin' | 'System';
   }[];
 }
 
@@ -89,4 +95,5 @@ export interface PredictionData {
     topCriticalAreas: CriticalArea[];
     expectedCategoryDistribution: { name: string; value: number }[];
     actionableRecommendations: string[];
+    seasonalImpactMessage?: string;
 }

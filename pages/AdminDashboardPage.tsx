@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { fetchAllComplaints, fetchDashboardStats, updateComplaintStatus, sendFeedbackRequest, updateComplaintDepartment } from '../services/complaintService';
+import { fetchAllComplaints, fetchDashboardStats, updateComplaintStatus, sendFeedbackRequest, updateComplaintDepartment, subscribeToComplaints } from '../services/complaintService';
 import { Complaint, ComplaintStatus, DashboardStats } from '../types';
 import Button from '../components/Button';
 import { ClockIcon, FolderOpenIcon, ExclamationTriangleIcon, ArrowPathIcon, MagnifyingGlassCircleIcon, CogIcon } from '../constants';
@@ -10,6 +10,7 @@ import DashboardStatCard from '../components/DashboardStatCard';
 import ComplaintCard from '../components/ComplaintCard';
 import ComplaintDetailsModal from '../components/ComplaintDetailsModal';
 import DepartmentAssignModal from '../components/DepartmentAssignModal';
+import Spinner from '../components/Spinner';
 
 
 // --- Main Page Component ---
@@ -34,30 +35,16 @@ const AdminDashboardPage: React.FC = () => {
     });
 
 
-    const loadData = useCallback(async (isBackgroundRefresh = false) => {
-        if (!isBackgroundRefresh) {
-            setLoading(true);
-        }
-        setError(null);
-        try {
-            const data = await fetchAllComplaints();
-            setComplaints(data);
-            setStats(fetchDashboardStats(data));
-        } catch (err) {
-            setError("Failed to load complaints. Please try again.");
-            console.error(err);
-        } finally {
-            if (!isBackgroundRefresh) {
-                setLoading(false);
-            }
-        }
-    }, []);
-
     useEffect(() => {
-        loadData(); // Initial load
-        const intervalId = setInterval(() => loadData(true), 15000); // Background refresh every 15 seconds
-        return () => clearInterval(intervalId); // Cleanup on component unmount
-    }, [loadData]);
+        setLoading(true);
+        const unsubscribe = subscribeToComplaints(allComplaints => {
+            setComplaints(allComplaints);
+            setStats(fetchDashboardStats(allComplaints));
+            setLoading(false);
+        });
+
+        return () => unsubscribe(); // Cleanup on component unmount
+    }, []);
 
     const handleUpdateStatus = async (complaintId: string, newStatus: ComplaintStatus) => {
         setUpdatingStatus(prev => ({ ...prev, [complaintId]: true }));
@@ -65,16 +52,8 @@ const AdminDashboardPage: React.FC = () => {
         const note = `Status updated to ${newStatus} by ${adminId}.`;
 
         try {
-            // Call the service to make the update persistent
-            const updatedComplaint = await updateComplaintStatus(complaintId, newStatus, note);
-            
-            // Update local state with the confirmed result from the service
-            const newComplaints = complaints.map(c => 
-                c.id === complaintId ? updatedComplaint : c
-            );
-            setComplaints(newComplaints);
-            setStats(fetchDashboardStats(newComplaints)); // Recalculate stats
-
+            // The service will update state and notify all subscribers
+            await updateComplaintStatus(complaintId, newStatus, note);
         } catch (err) {
             setError(`Failed to update status for ${complaintId}. Please try again.`);
             console.error(err);
@@ -86,11 +65,7 @@ const AdminDashboardPage: React.FC = () => {
     const handleAssignDepartment = async (complaintId: string, newDepartment: string) => {
         setDepartmentAssignment({ complaintId, department: newDepartment });
         try {
-            const updatedComplaint = await updateComplaintDepartment(complaintId, newDepartment);
-            const newComplaints = complaints.map(c => 
-                c.id === complaintId ? updatedComplaint : c
-            );
-            setComplaints(newComplaints);
+            await updateComplaintDepartment(complaintId, newDepartment);
             if (assignModalComplaint) {
                 setAssignModalComplaint(null);
             }
@@ -109,28 +84,13 @@ const AdminDashboardPage: React.FC = () => {
 
         setFeedbackLoading(complaintId);
         try {
-            const score = await sendFeedbackRequest({
+            // The service will update state and notify all subscribers
+            await sendFeedbackRequest({
                 ticketId: complaint.id,
                 contact: complaint.contact,
             });
-
-            // Update local state to reflect the new score and history
-            setComplaints(prevComplaints =>
-                prevComplaints.map(c => {
-                    if (c.id === complaintId) {
-                        const newHistory = [...c.history, {
-                            status: c.status,
-                            timestamp: new Date(),
-                            notes: `Citizen feedback received: ${score}/5.`,
-                        }];
-                        return { ...c, citizenSatisfactionScore: score, history: newHistory };
-                    }
-                    return c;
-                })
-            );
         } catch (error) {
             console.error("Failed to send feedback request:", error);
-            // In a real app, you might show an error toast to the admin here.
         } finally {
             setFeedbackLoading(null);
         }
@@ -156,7 +116,11 @@ const AdminDashboardPage: React.FC = () => {
 
     const filteredComplaints = useMemo(() => {
         return complaints
-            .filter(c => statusFilter === 'All' || c.status === statusFilter)
+            .filter(c => {
+                if (statusFilter === 'All') return true;
+                if (statusFilter === 'In Progress') return c.status === 'In Progress' || c.status === 'Reopened';
+                return c.status === statusFilter;
+            })
             .filter(c => {
                 const query = searchQuery.toLowerCase();
                 return c.id.toLowerCase().includes(query) ||
@@ -194,8 +158,8 @@ const AdminDashboardPage: React.FC = () => {
                     </select>
                 </div>
                 <div className="flex-grow"></div>
-                <Button onClick={() => loadData()} disabled={loading} variant="ghost" className="!p-2" aria-label="Refresh Data">
-                    <ArrowPathIcon className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
+                <Button onClick={() => {}} disabled={true} variant="ghost" className="!p-2" aria-label="Refresh Data">
+                    <ArrowPathIcon className="h-5 w-5 text-green-500" title="Real-time sync enabled" />
                 </Button>
                 <Button onClick={() => setIsSettingsOpen(true)} variant="ghost" className="!p-2" aria-label="Open Settings">
                     <CogIcon className="h-5 w-5" />
@@ -204,7 +168,7 @@ const AdminDashboardPage: React.FC = () => {
 
             {/* Main Content */}
             {loading ? (
-                <div className="text-center p-8">Loading complaints...</div>
+                <Spinner />
             ) : error ? (
                 <div className="text-center p-8 text-red-500 bg-red-50 rounded-lg">{error}</div>
             ) : (
