@@ -2,7 +2,7 @@
 <img width="1200" height="475" alt="GHBanner" src="l2.jpeg" />
 </div>
 
-## Run Locally
+## Run Locally in your pc
 
 **Prerequisites:**  Node.js
 
